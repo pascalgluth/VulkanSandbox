@@ -21,13 +21,13 @@ Vulkan Sandbox Application
 
 ### To-Do
 
-[x] Draw First Triangle
-[x] Multisampling
-[ ] 3D Camera
-[ ] Load Models
-[ ] Load Textures
-[ ] Add ImGui
-[ ] Lighting
+- [x] Draw First Triangle
+- [x] Multisampling
+- [ ] 3D Camera
+- [ ] Load Models
+- [ ] Load Textures
+- [ ] Add ImGui
+- [ ] Lighting
 
 ### Triangle
 
