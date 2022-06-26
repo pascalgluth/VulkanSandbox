@@ -23,6 +23,7 @@ Vulkan Sandbox Application
 
 - [x] Draw First Triangle
 - [x] Multisampling
+- [ ] Model Transformation
 - [ ] 3D Camera
 - [ ] Load Models
 - [ ] Load Textures
