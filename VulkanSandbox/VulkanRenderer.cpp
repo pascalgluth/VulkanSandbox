@@ -40,6 +40,9 @@ void VulkanRenderer::Init()
 
         initImGui();
 
+        m_camera.SetProjection(90.f, static_cast<float>(m_swapchainExtent.width)/static_cast<float>(m_swapchainExtent.height), 0.1f, 10000.f);
+        m_camera.AddPositionOffset(0.f, 0.f,5.f);
+
         std::vector<Vertex> vertices =
         {
             {{-0.5f, 0.5f, 0.f}, {1.f, 0.f, 0.f}},
@@ -428,8 +431,15 @@ void VulkanRenderer::createPipeline()
 
     // -- PIPELINE LAYOUT --
 
+    VkPushConstantRange pushConstantRange = {};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(PushViewProjection);
+
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
     // todo: Descriptor set layouts
 
     VkResult result = vkCreatePipelineLayout(m_device.logicalDevice, &pipelineLayoutCreateInfo, nullptr, &m_graphicsPipelineLayout);
@@ -700,6 +710,12 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
         vkCmdBeginRenderPass(m_commandBuffers[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
         {
             vkCmdBindPipeline(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+
+            PushViewProjection pushVp = {};
+            pushVp.view = m_camera.GetViewMatrix();
+            pushVp.projection = m_camera.GetProjectionMatrix();
+            vkCmdPushConstants(m_commandBuffers[currentImage], m_graphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
+                0, sizeof(PushViewProjection), &pushVp);
 
             VkBuffer vertexBuffers[] = { m_testMesh.GetVertexBuffer()->GetBuffer() };
             VkDeviceSize offsets[] = { 0 };

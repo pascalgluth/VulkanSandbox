@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "Camera.h"
 #include "Utilities.h"
 #include "Image.h"
 #include "Mesh.h"
@@ -23,6 +24,7 @@ private:
 	const int MAX_CONCURRENT_FRAMES = 3;
 
 	Mesh m_testMesh;
+	Camera m_camera;
 	
 	// Vulkan Components
 	
