@@ -5,6 +5,11 @@
 #include <set>
 #include <stdexcept>
 
+#include "imgui/imgui.h"
+#include "imgui/imgui_stdlib.h"
+#include "imgui/imgui_impl_sdl.h"
+#include "imgui/imgui_impl_vulkan.h"
+
 #include "Engine.h"
 #include "Window.h"
 
@@ -33,6 +38,8 @@ void VulkanRenderer::Init()
         createGraphicsCommandBuffer();
         createSynchronization();
 
+        initImGui();
+
         std::vector<Vertex> vertices =
         {
             {{-0.5f, 0.5f, 0.f}, {1.f, 0.f, 0.f}},
@@ -53,6 +60,11 @@ void VulkanRenderer::Init()
 void VulkanRenderer::Destroy()
 {
     vkDeviceWaitIdle(m_device.logicalDevice);
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
+    vkDestroyDescriptorPool(m_device.logicalDevice, m_imguiDescriptorPool, nullptr);
 
     m_testMesh.Destroy();
     
@@ -98,6 +110,12 @@ void VulkanRenderer::Draw()
 
     vkWaitForFences(m_device.logicalDevice, 1, &m_waitForDrawFinished[currentFrame], VK_TRUE, 0x7FFFFFFF);
     vkResetFences(m_device.logicalDevice, 1, &m_waitForDrawFinished[currentFrame]);
+
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplSDL2_NewFrame(Engine::GetWindow()->GetSDLWindow());
+    ImGui::NewFrame();
+    renderImGui();
+    ImGui::Render();
     
     uint32_t imageIndex;
     vkAcquireNextImageKHR(m_device.logicalDevice, m_swapchain, 0x7FFFFFFF, m_imageAvailable[currentFrame], VK_NULL_HANDLE, &imageIndex);
@@ -131,6 +149,16 @@ void VulkanRenderer::Draw()
     CHECK_VK_RESULT(result, "Failed to present Image");
 
     currentFrame = (currentFrame + 1) % MAX_CONCURRENT_FRAMES;
+}
+
+void VulkanRenderer::renderImGui()
+{
+    if (ImGui::BeginMainMenuBar())
+    {
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+        ImGui::EndMainMenuBar();
+    }
 }
 
 void VulkanRenderer::createInstance()
@@ -599,6 +627,54 @@ void VulkanRenderer::createGraphicsCommandBuffer()
     CHECK_VK_RESULT(result, "Failed to allocate Command Buffers");
 }
 
+void VulkanRenderer::initImGui()
+{
+    VkDescriptorPoolSize poolSizes[] =
+    {
+        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+    };
+
+    VkDescriptorPoolCreateInfo poolCreateInfo = {};
+    poolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    poolCreateInfo.maxSets = 1000;
+    poolCreateInfo.poolSizeCount = std::size(poolSizes);
+    poolCreateInfo.pPoolSizes = poolSizes;
+
+    CHECK_VK_RESULT(vkCreateDescriptorPool(m_device.logicalDevice, &poolCreateInfo, nullptr, &m_imguiDescriptorPool), "Failed to create ImGui Descriptor Pool");
+
+    ImGui::CreateContext();
+    ImGui_ImplSDL2_InitForVulkan(Engine::GetWindow()->GetSDLWindow());
+
+    ImGui_ImplVulkan_InitInfo imguiInitInfo = {};
+    imguiInitInfo.Instance = m_instance;
+    imguiInitInfo.PhysicalDevice = m_device.physicalDevice;
+    imguiInitInfo.Device = m_device.logicalDevice;
+    imguiInitInfo.Queue = m_graphicsQueue;
+    imguiInitInfo.DescriptorPool = m_imguiDescriptorPool;
+    imguiInitInfo.MinImageCount = static_cast<uint32_t>(m_swapchainImages.size());
+    imguiInitInfo.ImageCount = static_cast<uint32_t>(m_swapchainImages.size());
+    imguiInitInfo.MSAASamples = m_msaaSamples;
+
+    ImGui_ImplVulkan_Init(&imguiInitInfo, m_renderPass);
+
+    VkCommandBuffer commandBuffer = beginCommandBuffer(m_device.logicalDevice, m_graphicsCommandPool);
+    ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+    endCommandBufferAndSubmit(m_device.logicalDevice, m_graphicsCommandPool, m_graphicsQueue, commandBuffer);
+
+    ImGui_ImplVulkan_DestroyFontUploadObjects();
+}
+
 void VulkanRenderer::recordCommands(uint32_t currentImage)
 {
     VkCommandBufferBeginInfo commandBufferBeginInfo = {};
@@ -630,6 +706,8 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
             vkCmdBindVertexBuffers(m_commandBuffers[currentImage], 0, 1, vertexBuffers, offsets);
             
             vkCmdDraw(m_commandBuffers[currentImage], m_testMesh.GetVertexCount(), 1, 0, 0);
+
+            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_commandBuffers[currentImage]);
         }
         vkCmdEndRenderPass(m_commandBuffers[currentImage]);
         

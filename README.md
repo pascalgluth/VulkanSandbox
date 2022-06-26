@@ -27,7 +27,7 @@ Vulkan Sandbox Application
 - [ ] 3D Camera
 - [ ] Load Models
 - [ ] Load Textures
-- [ ] Add ImGui
+- [x] Add ImGui
 - [ ] Lighting
 
 ### Triangle

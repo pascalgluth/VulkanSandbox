@@ -2,6 +2,8 @@
 
 #include <SDL.h>
 
+#include "imgui/imgui_impl_sdl.h"
+
 Window::Window()
 {
     m_window = nullptr;
@@ -25,6 +27,8 @@ bool Window::Update()
     {
         if (event.type == SDL_QUIT)
             return false;
+
+        ImGui_ImplSDL2_ProcessEvent(&event);
     }
 
     return true;

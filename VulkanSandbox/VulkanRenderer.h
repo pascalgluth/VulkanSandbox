@@ -61,6 +61,10 @@ private:
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 	std::vector<Image> m_colorResolveImage;
 
+	// ImGui
+	VkDescriptorPool m_imguiDescriptorPool;
+	void renderImGui();
+
 	// -- Vulkan Functions --
 
 	// Create Functions
@@ -75,6 +79,8 @@ private:
 	void createCommandPool();
 	void createGraphicsCommandBuffer();
 
+	void initImGui();
+	
 	void recordCommands(uint32_t currentImage);
 
 	// Get Functions
