@@ -3,3 +3,4 @@
 bin/*.exe
 bin/*.pdb
 bin-int
+VulkanSandbox/shaderes/*.spv
