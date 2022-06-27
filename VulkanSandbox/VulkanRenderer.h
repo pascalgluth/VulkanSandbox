@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #define VK_DEBUG
 
@@ -80,6 +80,8 @@ private:
 	void createRenderPass();
 	void createCommandPool();
 	void createGraphicsCommandBuffer();
+    
+    void test();
 
 	void initImGui();
 	

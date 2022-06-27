@@ -1,4 +1,4 @@
-﻿#include "VulkanRenderer.h"
+#include "VulkanRenderer.h"
 
 #include <SDL_vulkan.h>
 #include <iostream>
@@ -57,6 +57,7 @@ void VulkanRenderer::Init()
     catch (const std::runtime_error& err)
     {
         std::cout << "Error: " << err.what() << std::endl;
+        exit(-1);
     }
 }
 
@@ -82,6 +83,11 @@ void VulkanRenderer::Destroy()
     vkDestroyCommandPool(m_device.logicalDevice, m_graphicsCommandPool, nullptr);
     
     vkDestroyRenderPass(m_device.logicalDevice, m_renderPass, nullptr);
+
+    for (size_t i = 0; i < m_colorResolveImage.size(); ++i)
+    {
+        m_colorResolveImage[i].Destroy(m_device.logicalDevice);
+    }
     
     for (size_t i = 0; i < m_depthBufferImage.size(); ++i)
     {
@@ -712,8 +718,8 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
             vkCmdBindPipeline(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 
             PushViewProjection pushVp = {};
-            pushVp.view = m_camera.GetViewMatrix();
-            pushVp.projection = m_camera.GetProjectionMatrix();
+            pushVp.view = glm::lookAt(glm::vec3{0.f, 0.f, 2.f}, {0.f, 0.f, 0.f}, {0.f, 1.f, 0.f});
+            pushVp.projection = glm::perspectiveFovRH(90.f, static_cast<float>(m_swapchainExtent.width), static_cast<float>(m_swapchainExtent.height), 0.1f, 1000.f);
             vkCmdPushConstants(m_commandBuffers[currentImage], m_graphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
                 0, sizeof(PushViewProjection), &pushVp);
 

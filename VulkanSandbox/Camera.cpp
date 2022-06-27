@@ -30,8 +30,8 @@ void Camera::AddRotation(float roll, float pitch, float yaw)
 
 void Camera::SetProjection(float fov, float aspectRatio, float near, float far)
 {
-    m_projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, near, far);
-    m_projectionMatrix[1][1] *= -1;
+    m_projectionMatrix = glm::perspectiveRH(glm::radians(fov),aspectRatio,near,far);
+    m_projectionMatrix = glm::scale(m_projectionMatrix,glm::vec3{1.f,-1.f,1.f});
 }
 
 glm::mat4 Camera::GetViewMatrix()
@@ -49,5 +49,5 @@ void Camera::onPosUpdate()
     glm::vec3 forward;
    // m_forward *= glm::eulerAngles(glm::qua<float>(m_rotation));
     
-    m_viewMatrix = glm::lookAt(m_position, m_position + m_forward, m_up);
+    m_viewMatrix = glm::lookAtRH(m_position, m_position + m_forward, m_up);
 }

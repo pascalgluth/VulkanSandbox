@@ -1,6 +1,16 @@
+.DS_Store
 .idea
 .vs
 bin/*.exe
 bin/*.pdb
 bin-int
 VulkanSandbox/shaderes/*.spv
+cmake-build-debug
+CMakeFiles
+CMakeScripts
+cmake_install.cmake
+*.xcodeproj
+VulkanSandbox.build
+build
+
+CMakeCache.txt
