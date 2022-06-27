@@ -8,6 +8,7 @@
 #include "Utilities.h"
 #include "Image.h"
 #include "Mesh.h"
+#include "UniformBuffer.h"
 
 class VulkanRenderer
 {
@@ -59,6 +60,7 @@ private:
 	std::vector<VkSemaphore> m_renderFinished;
 	std::vector<VkFence> m_waitForDrawFinished;
 
+
 	// MSAA
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 	std::vector<Image> m_colorResolveImage;
@@ -80,9 +82,9 @@ private:
 	void createRenderPass();
 	void createCommandPool();
 	void createGraphicsCommandBuffer();
-    
-    void test();
-
+	
+	UniformBuffer<UboViewProjection> m_uboViewProjection;
+	
 	void initImGui();
 	
 	void recordCommands(uint32_t currentImage);

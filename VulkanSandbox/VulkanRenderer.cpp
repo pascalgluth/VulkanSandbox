@@ -32,6 +32,11 @@ void VulkanRenderer::Init()
         createSwapchain();
         createDepthBufferImage();
         createRenderPass();
+        
+        m_uboViewProjection.Init(m_device.logicalDevice, m_device.physicalDevice,
+            VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0,
+            static_cast<uint32_t>(m_swapchainImages.size()));
+        
         createPipeline();
         createFrameBuffers();
         createCommandPool();
@@ -40,17 +45,17 @@ void VulkanRenderer::Init()
 
         initImGui();
 
-        m_camera.SetProjection(90.f, static_cast<float>(m_swapchainExtent.width)/static_cast<float>(m_swapchainExtent.height), 0.1f, 10000.f);
-        m_camera.AddPositionOffset(0.f, 0.f,5.f);
+        m_camera.SetProjection(90.f, static_cast<float>(m_swapchainExtent.width)/static_cast<float>(m_swapchainExtent.height), 0.01f, 10000.f);
+        m_camera.AddPositionOffset(0.f, 0.f, 1.f);
 
         std::vector<Vertex> vertices =
         {
-            {{-0.5f, 0.5f, 0.f}, {1.f, 0.f, 0.f}},
-            {{0.f, -0.5f, 0.f}, {0.f, 1.f, 0.f}},
-            {{0.5, 0.5, 0.f}, {0.f, 0.f, 1.f}}
+            {{-0.5f, -0.5f, 0.f}, {1.f, 0.f, 0.f}},
+            {{0.f, 0.5f, 0.f}, {0.f, 1.f, 0.f}},
+            {{0.5f, -0.5f, 0.f}, {0.f, 0.f, 1.f}}
         };
 
-        std::vector<uint32_t> indices = {};
+        std::vector<uint32_t> indices = { 0, 1, 2 };
 
         m_testMesh = Mesh(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, vertices, indices);
     }
@@ -102,6 +107,8 @@ void VulkanRenderer::Destroy()
     vkDestroyPipeline(m_device.logicalDevice, m_graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(m_device.logicalDevice, m_graphicsPipelineLayout, nullptr);
 
+    m_uboViewProjection.Destroy();
+
     for (size_t i = 0; i < m_swapchainImages.size(); ++i)
     {
         vkDestroyImageView(m_device.logicalDevice, m_swapchainImages[i].imageView, nullptr);
@@ -129,6 +136,9 @@ void VulkanRenderer::Draw()
     uint32_t imageIndex;
     vkAcquireNextImageKHR(m_device.logicalDevice, m_swapchain, 0x7FFFFFFF, m_imageAvailable[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
+    m_uboViewProjection.Data.view = m_camera.GetViewMatrix();
+    m_uboViewProjection.Data.projection = m_camera.GetProjectionMatrix();
+    m_uboViewProjection.Update(imageIndex);
     recordCommands(imageIndex);
 
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
@@ -168,6 +178,18 @@ void VulkanRenderer::renderImGui()
 
         ImGui::EndMainMenuBar();
     }
+
+    ImGui::Begin("Camera");
+    {
+        glm::vec3 camPos = m_camera.GetPosition();
+        if (ImGui::DragFloat3("Position", &camPos.x, 0.01f))
+            m_camera.SetPosition(camPos);
+
+        glm::vec3 camRot = m_camera.GetRotation();
+        if (ImGui::DragFloat3("Rotation", &camRot.x, 1.f))
+            m_camera.SetRotation(camRot);
+    }
+    ImGui::End();
 }
 
 void VulkanRenderer::createInstance()
@@ -386,9 +408,9 @@ void VulkanRenderer::createPipeline()
 
     VkViewport viewport = {};
     viewport.x = 0.f;
-    viewport.y = 0.f;
+    viewport.y = static_cast<float>(m_swapchainExtent.height);
     viewport.width = static_cast<float>(m_swapchainExtent.width);
-    viewport.height = static_cast<float>(m_swapchainExtent.height);
+    viewport.height = -static_cast<float>(m_swapchainExtent.height);
     viewport.minDepth = 0.f;
     viewport.maxDepth = 1.f;
 
@@ -437,16 +459,15 @@ void VulkanRenderer::createPipeline()
 
     // -- PIPELINE LAYOUT --
 
-    VkPushConstantRange pushConstantRange = {};
-    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    pushConstantRange.offset = 0;
-    pushConstantRange.size = sizeof(PushViewProjection);
-
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-    pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
-    // todo: Descriptor set layouts
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+    pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
+
+    std::vector<VkDescriptorSetLayout> setLayouts = { m_uboViewProjection.GetLayout() };
+    
+    pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(setLayouts.size());
+    pipelineLayoutCreateInfo.pSetLayouts = setLayouts.data();
 
     VkResult result = vkCreatePipelineLayout(m_device.logicalDevice, &pipelineLayoutCreateInfo, nullptr, &m_graphicsPipelineLayout);
     CHECK_VK_RESULT(result, "Failed to create Pipeline Layout");
@@ -717,17 +738,24 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
         {
             vkCmdBindPipeline(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 
-            PushViewProjection pushVp = {};
-            pushVp.view = glm::lookAt(glm::vec3{0.f, 0.f, 2.f}, {0.f, 0.f, 0.f}, {0.f, 1.f, 0.f});
-            pushVp.projection = glm::perspectiveFovRH(90.f, static_cast<float>(m_swapchainExtent.width), static_cast<float>(m_swapchainExtent.height), 0.1f, 1000.f);
-            vkCmdPushConstants(m_commandBuffers[currentImage], m_graphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
-                0, sizeof(PushViewProjection), &pushVp);
+            std::vector<VkDescriptorSet> descriptorSets = { m_uboViewProjection.GetDescriptorSet(currentImage) };
+            vkCmdBindDescriptorSets(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipelineLayout,
+                0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(),
+                0, nullptr);
 
             VkBuffer vertexBuffers[] = { m_testMesh.GetVertexBuffer()->GetBuffer() };
             VkDeviceSize offsets[] = { 0 };
             vkCmdBindVertexBuffers(m_commandBuffers[currentImage], 0, 1, vertexBuffers, offsets);
-            
-            vkCmdDraw(m_commandBuffers[currentImage], m_testMesh.GetVertexCount(), 1, 0, 0);
+
+            if (m_testMesh.Indexed())
+            {
+                vkCmdBindIndexBuffer(m_commandBuffers[currentImage], m_testMesh.GetIndexBuffer()->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
+                vkCmdDrawIndexed(m_commandBuffers[currentImage], m_testMesh.GetIndexCount(), 1, 0, 0, 0);
+            }
+            else
+            {
+                vkCmdDraw(m_commandBuffers[currentImage], m_testMesh.GetVertexCount(), 1, 0, 0);
+            }
 
             ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_commandBuffers[currentImage]);
         }

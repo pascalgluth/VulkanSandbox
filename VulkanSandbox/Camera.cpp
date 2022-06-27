@@ -2,8 +2,8 @@
 
 Camera::Camera()
 {
-    m_position = { 0.f, 0.f, 0.f };
-    m_rotation = { 0.f, 0.f, 0.f };
+    m_position = {0.f, 0.f, 0.f};
+    m_rotation = {0.f, 0.f, 0.f};
 
     onPosUpdate();
 }
@@ -30,8 +30,29 @@ void Camera::AddRotation(float roll, float pitch, float yaw)
 
 void Camera::SetProjection(float fov, float aspectRatio, float near, float far)
 {
-    m_projectionMatrix = glm::perspectiveRH(glm::radians(fov),aspectRatio,near,far);
-    m_projectionMatrix = glm::scale(m_projectionMatrix,glm::vec3{1.f,-1.f,1.f});
+    m_projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, near, far);
+}
+
+const glm::vec3& Camera::GetPosition()
+{
+    return m_position;
+}
+
+const glm::vec3& Camera::GetRotation()
+{
+    return m_rotation;
+}
+
+void Camera::SetPosition(const glm::vec3& newPos)
+{
+    m_position = newPos;
+    onPosUpdate();
+}
+
+void Camera::SetRotation(const glm::vec3& newRot)
+{
+    m_rotation = newRot;
+    onPosUpdate();
 }
 
 glm::mat4 Camera::GetViewMatrix()
@@ -46,8 +67,13 @@ glm::mat4 Camera::GetProjectionMatrix()
 
 void Camera::onPosUpdate()
 {
-    glm::vec3 forward;
-   // m_forward *= glm::eulerAngles(glm::qua<float>(m_rotation));
-    
-    m_viewMatrix = glm::lookAtRH(m_position, m_position + m_forward, m_up);
+    m_forward = glm::rotate(DEFAULT_FORWARD, glm::radians(m_rotation.x), {1.f, 0.f, 0.f}) +
+        glm::rotate(DEFAULT_FORWARD, glm::radians(m_rotation.y), {0.f, 1.f, 0.f});
+
+    m_up = glm::rotate(DEFAULT_UP, glm::radians(m_rotation.x), {1.f, 0.f, 0.f}) +
+        glm::rotate(DEFAULT_UP, glm::radians(m_rotation.y), {0.f, 1.f, 0.f}) +
+        glm::rotate(DEFAULT_UP, glm::radians(m_rotation.z), {0.f, 0.f, 1.f});
+
+    glm::vec3 lookAt = m_forward + m_position;
+    m_viewMatrix = glm::lookAt(m_position, lookAt, m_up);
 }
