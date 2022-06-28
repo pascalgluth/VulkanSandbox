@@ -8,6 +8,7 @@
 #include "Utilities.h"
 #include "Image.h"
 #include "Mesh.h"
+#include "Object.h"
 #include "UniformBuffer.h"
 
 class VulkanRenderer
@@ -26,6 +27,8 @@ private:
 
 	Mesh m_testMesh;
 	Camera m_camera;
+
+	Object m_object;
 	
 	// Vulkan Components
 	

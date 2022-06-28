@@ -8,7 +8,7 @@ class Mesh
 public:
     Mesh();
     Mesh(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue transferQueue, VkCommandPool transferCommandPool,
-        const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+        const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const glm::mat4& parentTransform);
     ~Mesh();
 
     void Destroy();
@@ -20,9 +20,13 @@ public:
     int GetIndexCount();
     Buffer* GetIndexBuffer();
 
+    const glm::mat4& GetTransform();
+
 private:
     VkDevice m_device;
     VkPhysicalDevice m_physicalDevice;
+
+    glm::mat4 m_transform;
     
     int m_vertexCount;
     Buffer m_vertexBuffer;

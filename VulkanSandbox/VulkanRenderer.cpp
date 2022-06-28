@@ -57,7 +57,9 @@ void VulkanRenderer::Init()
 
         std::vector<uint32_t> indices = { 0, 1, 2 };
 
-        m_testMesh = Mesh(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, vertices, indices);
+        //m_testMesh = Mesh(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, vertices, indices);
+
+        m_object.Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/SmallBuilding01.obj");
     }
     catch (const std::runtime_error& err)
     {
@@ -75,7 +77,8 @@ void VulkanRenderer::Destroy()
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(m_device.logicalDevice, m_imguiDescriptorPool, nullptr);
 
-    m_testMesh.Destroy();
+    //m_testMesh.Destroy();
+    m_object.Destroy();
     
     for (size_t i = 0; i < m_imageAvailable.size(); ++i)
     {
@@ -188,6 +191,14 @@ void VulkanRenderer::renderImGui()
         glm::vec3 camRot = m_camera.GetRotation();
         if (ImGui::DragFloat3("Rotation", &camRot.x, 1.f))
             m_camera.SetRotation(camRot);
+    }
+    ImGui::End();
+
+    ImGui::Begin("Building");
+    {
+        glm::vec3 pos = m_object.GetPosition();
+        if (ImGui::DragFloat3("Position", &pos.x, 0.01f))
+            m_object.SetPosition(pos);
     }
     ImGui::End();
 }
@@ -459,10 +470,15 @@ void VulkanRenderer::createPipeline()
 
     // -- PIPELINE LAYOUT --
 
+    VkPushConstantRange worldPushConstantRange = {};
+    worldPushConstantRange.size = sizeof(glm::mat4);
+    worldPushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    worldPushConstantRange.offset = 0;
+
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
-    pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    pipelineLayoutCreateInfo.pPushConstantRanges = &worldPushConstantRange;
 
     std::vector<VkDescriptorSetLayout> setLayouts = { m_uboViewProjection.GetLayout() };
     
@@ -743,18 +759,28 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
                 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(),
                 0, nullptr);
 
-            VkBuffer vertexBuffers[] = { m_testMesh.GetVertexBuffer()->GetBuffer() };
-            VkDeviceSize offsets[] = { 0 };
-            vkCmdBindVertexBuffers(m_commandBuffers[currentImage], 0, 1, vertexBuffers, offsets);
+            const glm::mat4& objectTransform = m_object.GetTransform();
 
-            if (m_testMesh.Indexed())
+            std::vector<Mesh>& meshes = m_object.GetMeshes();
+
+            for (size_t i = 0; i < meshes.size(); ++i)
             {
-                vkCmdBindIndexBuffer(m_commandBuffers[currentImage], m_testMesh.GetIndexBuffer()->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
-                vkCmdDrawIndexed(m_commandBuffers[currentImage], m_testMesh.GetIndexCount(), 1, 0, 0, 0);
-            }
-            else
-            {
-                vkCmdDraw(m_commandBuffers[currentImage], m_testMesh.GetVertexCount(), 1, 0, 0);
+                VkBuffer vertexBuffers[] = { meshes[i].GetVertexBuffer()->GetBuffer() };
+                VkDeviceSize offsets[] = { 0 };
+                vkCmdBindVertexBuffers(m_commandBuffers[currentImage], 0, 1, vertexBuffers, offsets);
+
+                glm::mat4 transform = objectTransform * meshes[i].GetTransform();
+                vkCmdPushConstants(m_commandBuffers[currentImage], m_graphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &transform);
+                
+                if (meshes[i].Indexed())
+                {
+                    vkCmdBindIndexBuffer(m_commandBuffers[currentImage], meshes[i].GetIndexBuffer()->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
+                    vkCmdDrawIndexed(m_commandBuffers[currentImage], meshes[i].GetIndexCount(), 1, 0, 0, 0);
+                }
+                else
+                {
+                    vkCmdDraw(m_commandBuffers[currentImage], meshes[i].GetVertexCount(), 1, 0, 0);
+                }
             }
 
             ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_commandBuffers[currentImage]);

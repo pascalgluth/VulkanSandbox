@@ -5,10 +5,12 @@ Mesh::Mesh()
 }
 
 Mesh::Mesh(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue transferQueue, VkCommandPool transferCommandPool,
-    const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
+    const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const glm::mat4& parentTransform)
 {
     m_device = device;
     m_physicalDevice = physicalDevice;
+
+    m_transform = parentTransform;
 
     indices.empty() ? m_indexed = false : m_indexed = true;
 
@@ -55,6 +57,11 @@ int Mesh::GetIndexCount()
 Buffer* Mesh::GetIndexBuffer()
 {
     return &m_indexBuffer;
+}
+
+const glm::mat4& Mesh::GetTransform()
+{
+    return m_transform;
 }
 
 void Mesh::createVertexBuffer(VkQueue transferQueue, VkCommandPool transferCommandPool,

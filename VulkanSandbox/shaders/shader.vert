@@ -9,10 +9,15 @@ layout(binding = 0) uniform UboViewProjection
     mat4 projection;
 } uboVP;
 
+layout(push_constant) uniform PushModelTransform
+{
+    mat4 model;
+} pushModel;
+
 layout(location = 0) out vec3 outColor;
 
 void main()
 {
-    gl_Position = uboVP.projection * uboVP.view * vec4(inPosition, 1.0);
+    gl_Position = uboVP.projection * uboVP.view * pushModel.model * vec4(inPosition, 1.0);
     outColor = inColor;
 }
