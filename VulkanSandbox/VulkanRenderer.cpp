@@ -11,6 +11,7 @@
 #include "imgui/imgui_impl_vulkan.h"
 
 #include "Engine.h"
+#include "MaterialManager.h"
 #include "Window.h"
 
 VulkanRenderer::VulkanRenderer()
@@ -36,6 +37,8 @@ void VulkanRenderer::Init()
         m_uboViewProjection.Init(m_device.logicalDevice, m_device.physicalDevice,
             VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0,
             static_cast<uint32_t>(m_swapchainImages.size()));
+
+        MaterialManager::Init(m_device.logicalDevice, m_device.physicalDevice);
         
         createPipeline();
         createFrameBuffers();
@@ -47,17 +50,6 @@ void VulkanRenderer::Init()
 
         m_camera.SetProjection(90.f, static_cast<float>(m_swapchainExtent.width)/static_cast<float>(m_swapchainExtent.height), 0.01f, 10000.f);
         m_camera.AddPositionOffset(0.f, 0.f, 1.f);
-
-        std::vector<Vertex> vertices =
-        {
-            {{-0.5f, -0.5f, 0.f}, {1.f, 0.f, 0.f}},
-            {{0.f, 0.5f, 0.f}, {0.f, 1.f, 0.f}},
-            {{0.5f, -0.5f, 0.f}, {0.f, 0.f, 1.f}}
-        };
-
-        std::vector<uint32_t> indices = { 0, 1, 2 };
-
-        //m_testMesh = Mesh(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, vertices, indices);
 
         m_object.Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/SmallBuilding01.obj");
     }
@@ -111,7 +103,8 @@ void VulkanRenderer::Destroy()
     vkDestroyPipelineLayout(m_device.logicalDevice, m_graphicsPipelineLayout, nullptr);
 
     m_uboViewProjection.Destroy();
-
+    MaterialManager::Destroy();
+    
     for (size_t i = 0; i < m_swapchainImages.size(); ++i)
     {
         vkDestroyImageView(m_device.logicalDevice, m_swapchainImages[i].imageView, nullptr);
@@ -445,7 +438,7 @@ void VulkanRenderer::createPipeline()
     rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizerCreateInfo.lineWidth = 1.f;
     rasterizerCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizerCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizerCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizerCreateInfo.depthBiasEnable = VK_FALSE;
 
     // -- MULTISAMPLING --
@@ -474,14 +467,18 @@ void VulkanRenderer::createPipeline()
     worldPushConstantRange.size = sizeof(glm::mat4);
     worldPushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     worldPushConstantRange.offset = 0;
-
+    
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
     pipelineLayoutCreateInfo.pPushConstantRanges = &worldPushConstantRange;
 
-    std::vector<VkDescriptorSetLayout> setLayouts = { m_uboViewProjection.GetLayout() };
-    
+    std::vector<VkDescriptorSetLayout> setLayouts =
+    {
+        m_uboViewProjection.GetLayout(),
+        MaterialManager::GetDescriptorSetLayout()
+    };
+
     pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(setLayouts.size());
     pipelineLayoutCreateInfo.pSetLayouts = setLayouts.data();
 
@@ -754,10 +751,7 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
         {
             vkCmdBindPipeline(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 
-            std::vector<VkDescriptorSet> descriptorSets = { m_uboViewProjection.GetDescriptorSet(currentImage) };
-            vkCmdBindDescriptorSets(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipelineLayout,
-                0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(),
-                0, nullptr);
+            
 
             const glm::mat4& objectTransform = m_object.GetTransform();
 
@@ -765,6 +759,16 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
 
             for (size_t i = 0; i < meshes.size(); ++i)
             {
+                std::vector<VkDescriptorSet> descriptorSets =
+                {
+                    m_uboViewProjection.GetDescriptorSet(currentImage),
+                    MaterialManager::GetDescriptorSet(meshes[i].GetMaterialId())
+                };
+                
+                vkCmdBindDescriptorSets(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipelineLayout,
+                    0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(),
+                    0, nullptr);
+                
                 VkBuffer vertexBuffers[] = { meshes[i].GetVertexBuffer()->GetBuffer() };
                 VkDeviceSize offsets[] = { 0 };
                 vkCmdBindVertexBuffers(m_commandBuffers[currentImage], 0, 1, vertexBuffers, offsets);
@@ -1075,5 +1079,3 @@ bool VulkanRenderer::checkValidationLayerSupport()
  
     return true;
 }
-
-

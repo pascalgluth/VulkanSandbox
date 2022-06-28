@@ -1,5 +1,6 @@
 ﻿#include "Buffer.h"
 
+#include "Image.h"
 #include "Utilities.h"
 
 Buffer::Buffer()
@@ -70,4 +71,26 @@ void Buffer::CopyBuffer(VkDevice device, VkQueue transferQueue, VkCommandPool tr
     vkCmdCopyBuffer(transferCommandBuffer, source, destination, 1, &copyRegion);
 
     endCommandBufferAndSubmit(device, transferCommandPool, transferQueue, transferCommandBuffer);
+}
+
+void Buffer::CopyBufferToImage(VkDevice device, VkQueue transferQueue, VkCommandPool transferCommandPool,
+    VkBuffer source, VkImage destination, uint32_t width, uint32_t height)
+{
+    VkCommandBuffer transferCommandBuffer = beginCommandBuffer(device, transferCommandPool);
+
+    VkBufferImageCopy imageCopyRegion = {};
+    imageCopyRegion.bufferOffset = 0;
+    imageCopyRegion.bufferRowLength = 0;
+    imageCopyRegion.bufferImageHeight = 0;
+    imageCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageCopyRegion.imageSubresource.mipLevel = 0;
+    imageCopyRegion.imageSubresource.baseArrayLayer = 0;
+    imageCopyRegion.imageSubresource.layerCount = 1;
+    imageCopyRegion.imageOffset = { 0, 0, 0 };
+    imageCopyRegion.imageExtent = { width, height, 1 };
+
+    vkCmdCopyBufferToImage(transferCommandBuffer, source, destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopyRegion);
+    
+    endCommandBufferAndSubmit(device, transferCommandPool, transferQueue, transferCommandBuffer);
+
 }

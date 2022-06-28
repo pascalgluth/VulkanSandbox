@@ -28,7 +28,8 @@ private:
 
     glm::vec3 m_position;
     glm::mat4 m_transform;
-    
+
+    std::vector<uint32_t> m_materialIndices;
     std::vector<Mesh> m_meshes;
 
     std::vector<Mesh> LoadNode(VkQueue transferQueue, VkCommandPool transferCommandPool, aiNode* node, const aiScene* scene, const glm::mat4 parentTransform);

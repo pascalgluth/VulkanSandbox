@@ -20,10 +20,12 @@ const std::vector<const char*> deviceExtensions = {
 #endif
 };
 
+constexpr uint32_t MAX_TEXTURE_COUNT = 256;
+
 struct Vertex
 {
     glm::vec3 position;
-    glm::vec3 color;
+    glm::vec2 textureCoord;
 
     static VkVertexInputBindingDescription getBindingDescription()
     {
@@ -45,8 +47,8 @@ struct Vertex
 
         attributeDescriptions[1].binding = 0;
         attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[1].offset = offsetof(Vertex, color);
+        attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[1].offset = offsetof(Vertex, textureCoord);
         
         return attributeDescriptions;
     }

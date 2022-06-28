@@ -92,6 +92,7 @@
     <ClCompile Include="imgui\imgui_tables.cpp" />
     <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MaterialManager.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="VulkanRenderer.cpp" />
@@ -111,6 +112,7 @@
     <ClInclude Include="imgui\imstb_rectpack.h" />
     <ClInclude Include="imgui\imstb_textedit.h" />
     <ClInclude Include="imgui\imstb_truetype.h" />
+    <ClInclude Include="MaterialManager.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="UniformBuffer.h" />
@@ -122,6 +124,7 @@
     <Content Include="shaders\compileShaders.bat" />
     <Content Include="shaders\shader.frag" />
     <Content Include="shaders\shader.vert" />
+    <Content Include="textures\SmallBuilding01.png" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\compileShaders.bat" />

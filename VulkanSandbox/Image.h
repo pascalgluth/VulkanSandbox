@@ -13,6 +13,9 @@ public:
               VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkImageAspectFlags aspectFlags);
     void Destroy(VkDevice device);
 
+    void TransitionLayout(VkDevice device, VkQueue queue, VkCommandPool commandPool, VkImageLayout oldLayout,
+                          VkImageLayout newLayout);
+
     static VkImage CreateImage(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height,
                                VkFormat format, VkSampleCountFlagBits samples, VkImageTiling tiling,
                                VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags,
