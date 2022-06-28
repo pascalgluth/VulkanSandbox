@@ -26,7 +26,7 @@ Vulkan Sandbox Application
 - [x] Model Transformation
 - [x] 3D Camera
 - [x] Load Models
-- [ ] Load Textures
+- [x] Load Textures
 - [x] Add ImGui
 - [ ] Lighting
 - [ ] Lighting (Blinn-Phong)
@@ -37,3 +37,8 @@ Vulkan Sandbox Application
 ### Triangle
 
 <img width="638" alt="image" src="https://user-images.githubusercontent.com/45181484/175827560-2b4a0bbf-1a90-428f-8a04-d5b890545194.png">
+
+### Object with Texture
+
+<img width="637" alt="image" src="https://user-images.githubusercontent.com/45181484/176275258-1ed1d84e-02a1-47cb-8819-a300e8e1666a.png">
+
