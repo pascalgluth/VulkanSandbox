@@ -22,13 +22,17 @@ Vulkan Sandbox Application
 ### To-Do
 
 - [x] Draw First Triangle
-- [x] Multisampling
+- [x] Multisample anti-aliasing
 - [ ] Model Transformation
 - [x] 3D Camera
 - [ ] Load Models
 - [ ] Load Textures
 - [x] Add ImGui
 - [ ] Lighting
+- [ ] Lighting (Blinn-Phong)
+- [ ] Lighting (deferred)
+- [ ] Shadow Mapping
+- [ ] Bloom
 
 ### Triangle
 
