@@ -23,9 +23,9 @@ Vulkan Sandbox Application
 
 - [x] Draw First Triangle
 - [x] Multisample anti-aliasing
-- [ ] Model Transformation
+- [x] Model Transformation
 - [x] 3D Camera
-- [ ] Load Models
+- [x] Load Models
 - [ ] Load Textures
 - [x] Add ImGui
 - [ ] Lighting
