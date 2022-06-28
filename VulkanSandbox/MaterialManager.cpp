@@ -127,7 +127,7 @@ uint32_t MaterialManager::CreateTexture(const std::string& fileName, VkQueue que
     vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
     samplerDescriptorSets.push_back(descriptorSet);
 
-    if ((static_cast<bool>(samplerDescriptorSets.size())-1) != id)
+    if ((static_cast<uint32_t>(samplerDescriptorSets.size())-1) != id)
         throw std::runtime_error("WTF happened");
     
     return id;

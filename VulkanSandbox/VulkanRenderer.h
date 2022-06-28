@@ -28,7 +28,8 @@ private:
 	Mesh m_testMesh;
 	Camera m_camera;
 
-	Object m_object;
+	// Scene
+	std::vector<Object*> m_objects;
 	
 	// Vulkan Components
 	

@@ -51,7 +51,14 @@ void VulkanRenderer::Init()
         m_camera.SetProjection(90.f, static_cast<float>(m_swapchainExtent.width)/static_cast<float>(m_swapchainExtent.height), 0.01f, 10000.f);
         m_camera.AddPositionOffset(0.f, 0.f, 1.f);
 
-        m_object.Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/SmallBuilding01.obj");
+        for (int i = 0; i < 5; ++i)
+        {
+            auto obj = new Object();
+            m_objects.push_back(obj);
+
+            obj->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/SmallBuilding01.obj");
+            obj->SetPosition({3.f * i, 0.f, 0.f});
+        }
     }
     catch (const std::runtime_error& err)
     {
@@ -70,7 +77,11 @@ void VulkanRenderer::Destroy()
     vkDestroyDescriptorPool(m_device.logicalDevice, m_imguiDescriptorPool, nullptr);
 
     //m_testMesh.Destroy();
-    m_object.Destroy();
+    for (size_t i = 0; i < m_objects.size(); ++i)
+    {
+        m_objects[i]->Destroy();
+        delete m_objects[i];
+    }
     
     for (size_t i = 0; i < m_imageAvailable.size(); ++i)
     {
@@ -187,13 +198,13 @@ void VulkanRenderer::renderImGui()
     }
     ImGui::End();
 
-    ImGui::Begin("Building");
+    /*ImGui::Begin("Building");
     {
         glm::vec3 pos = m_object.GetPosition();
         if (ImGui::DragFloat3("Position", &pos.x, 0.01f))
             m_object.SetPosition(pos);
     }
-    ImGui::End();
+    ImGui::End();*/
 }
 
 void VulkanRenderer::createInstance()
@@ -751,39 +762,39 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
         {
             vkCmdBindPipeline(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 
-            
-
-            const glm::mat4& objectTransform = m_object.GetTransform();
-
-            std::vector<Mesh>& meshes = m_object.GetMeshes();
-
-            for (size_t i = 0; i < meshes.size(); ++i)
+            for (size_t j = 0; j < m_objects.size(); ++j)
             {
-                std::vector<VkDescriptorSet> descriptorSets =
-                {
-                    m_uboViewProjection.GetDescriptorSet(currentImage),
-                    MaterialManager::GetDescriptorSet(meshes[i].GetMaterialId())
-                };
-                
-                vkCmdBindDescriptorSets(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipelineLayout,
-                    0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(),
-                    0, nullptr);
-                
-                VkBuffer vertexBuffers[] = { meshes[i].GetVertexBuffer()->GetBuffer() };
-                VkDeviceSize offsets[] = { 0 };
-                vkCmdBindVertexBuffers(m_commandBuffers[currentImage], 0, 1, vertexBuffers, offsets);
+                const glm::mat4& objectTransform = m_objects[j]->GetTransform();
+                std::vector<Mesh>& meshes = m_objects[j]->GetMeshes();
 
-                glm::mat4 transform = objectTransform * meshes[i].GetTransform();
-                vkCmdPushConstants(m_commandBuffers[currentImage], m_graphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &transform);
+                for (size_t i = 0; i < meshes.size(); ++i)
+                {
+                    std::vector<VkDescriptorSet> descriptorSets =
+                    {
+                        m_uboViewProjection.GetDescriptorSet(currentImage),
+                        MaterialManager::GetDescriptorSet(meshes[i].GetMaterialId())
+                    };
                 
-                if (meshes[i].Indexed())
-                {
-                    vkCmdBindIndexBuffer(m_commandBuffers[currentImage], meshes[i].GetIndexBuffer()->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
-                    vkCmdDrawIndexed(m_commandBuffers[currentImage], meshes[i].GetIndexCount(), 1, 0, 0, 0);
-                }
-                else
-                {
-                    vkCmdDraw(m_commandBuffers[currentImage], meshes[i].GetVertexCount(), 1, 0, 0);
+                    vkCmdBindDescriptorSets(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipelineLayout,
+                        0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(),
+                        0, nullptr);
+                
+                    VkBuffer vertexBuffers[] = { meshes[i].GetVertexBuffer()->GetBuffer() };
+                    VkDeviceSize offsets[] = { 0 };
+                    vkCmdBindVertexBuffers(m_commandBuffers[currentImage], 0, 1, vertexBuffers, offsets);
+
+                    glm::mat4 transform = objectTransform * meshes[i].GetTransform();
+                    vkCmdPushConstants(m_commandBuffers[currentImage], m_graphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &transform);
+                
+                    if (meshes[i].Indexed())
+                    {
+                        vkCmdBindIndexBuffer(m_commandBuffers[currentImage], meshes[i].GetIndexBuffer()->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
+                        vkCmdDrawIndexed(m_commandBuffers[currentImage], meshes[i].GetIndexCount(), 1, 0, 0, 0);
+                    }
+                    else
+                    {
+                        vkCmdDraw(m_commandBuffers[currentImage], meshes[i].GetVertexCount(), 1, 0, 0);
+                    }
                 }
             }
 
