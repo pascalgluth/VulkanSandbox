@@ -38,6 +38,10 @@ void VulkanRenderer::Init()
             VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0,
             static_cast<uint32_t>(m_swapchainImages.size()));
 
+        m_uboPointLight.Init(m_device.logicalDevice, m_device.physicalDevice,
+            VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0,
+            static_cast<uint32_t>(m_swapchainImages.size()));
+
         MaterialManager::Init(m_device.logicalDevice, m_device.physicalDevice);
         
         createPipeline();
@@ -51,7 +55,7 @@ void VulkanRenderer::Init()
         m_camera.SetProjection(90.f, static_cast<float>(m_swapchainExtent.width)/static_cast<float>(m_swapchainExtent.height), 0.01f, 10000.f);
         m_camera.AddPositionOffset(0.f, 0.f, 1.f);
 
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 1; ++i)
         {
             auto obj = new Object();
             m_objects.push_back(obj);
@@ -145,7 +149,10 @@ void VulkanRenderer::Draw()
 
     m_uboViewProjection.Data.view = m_camera.GetViewMatrix();
     m_uboViewProjection.Data.projection = m_camera.GetProjectionMatrix();
+    m_uboViewProjection.Data.camPosition = glm::vec4(m_camera.GetPosition(), 1.f);
     m_uboViewProjection.Update(imageIndex);
+    m_uboPointLight.Data = m_pointLight;
+    m_uboPointLight.Update(imageIndex);
     recordCommands(imageIndex);
 
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
@@ -195,6 +202,15 @@ void VulkanRenderer::renderImGui()
         glm::vec3 camRot = m_camera.GetRotation();
         if (ImGui::DragFloat3("Rotation", &camRot.x, 1.f))
             m_camera.SetRotation(camRot);
+    }
+    ImGui::End();
+
+    ImGui::Begin("Point Light");
+    {
+        ImGui::DragFloat3("Position", &m_pointLight.position.x, 0.01f);
+        ImGui::DragFloat3("Ambient", &m_pointLight.ambient.x, 0.01f, 0.f, 2.f);
+        ImGui::DragFloat3("Diffuse", &m_pointLight.diffuse.r, 0.01f, 0.f, 2.f);
+        ImGui::DragFloat3("Specular", &m_pointLight.specular.x, 0.01f, 0.f, 2.f);
     }
     ImGui::End();
 
@@ -487,7 +503,8 @@ void VulkanRenderer::createPipeline()
     std::vector<VkDescriptorSetLayout> setLayouts =
     {
         m_uboViewProjection.GetLayout(),
-        MaterialManager::GetDescriptorSetLayout()
+        MaterialManager::GetDescriptorSetLayout(),
+        m_uboPointLight.GetLayout()
     };
 
     pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(setLayouts.size());
@@ -772,7 +789,8 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
                     std::vector<VkDescriptorSet> descriptorSets =
                     {
                         m_uboViewProjection.GetDescriptorSet(currentImage),
-                        MaterialManager::GetDescriptorSet(meshes[i].GetMaterialId())
+                        MaterialManager::GetDescriptorSet(meshes[i].GetMaterialId()),
+                        m_uboPointLight.GetDescriptorSet(currentImage) 
                     };
                 
                     vkCmdBindDescriptorSets(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipelineLayout,

@@ -14,13 +14,19 @@ VkDevice device;
 VkPhysicalDevice physicalDevice;
 
 VkSampler textureSampler;
-
-std::vector<Image> textureImages;
+VkSampler normalSampler;
+VkSampler specularSampler;
 
 VkDescriptorSetLayout samplerSetLayout;
 VkDescriptorPool samplerDescriptorPool;
 
+// All Textures + their Samplers
+std::vector<Image> textureImages;
 std::vector<VkDescriptorSet> samplerDescriptorSets;
+std::vector<ETextureType> textureTypes;
+
+// Materials
+std::vector<Material> materials;
 
 void createSetLayout();
 void createDescriptorPool();
@@ -56,20 +62,41 @@ VkDescriptorSetLayout MaterialManager::GetDescriptorSetLayout()
     return samplerSetLayout;
 }
 
-VkDescriptorSet MaterialManager::GetDescriptorSet(uint32_t textureId)
+VkDescriptorSet MaterialManager::GetDescriptorSet(uint32_t materialId)
+{
+    if (materialId >= samplerDescriptorSets.size())
+        throw std::runtime_error("Invalid Material ID: " + std::to_string(materialId));
+
+    return samplerDescriptorSets[materialId];
+}
+
+ETextureType MaterialManager::GetTextureType(uint32_t textureId)
 {
     if (textureId >= samplerDescriptorSets.size())
         throw std::runtime_error("Invalid Texture ID: " + std::to_string(textureId));
-
-    return samplerDescriptorSets[textureId];
+    
+    return textureTypes[textureId];
 }
 
-uint32_t MaterialManager::CreateTexture(const std::string& fileName, VkQueue queue, VkCommandPool commandPool)
+Material MaterialManager::GetMaterial(uint32_t materialId)
 {
+    if (materialId >= materials.size())
+        throw std::runtime_error("Invalid Material ID: " + std::to_string(materialId));
+
+    return materials[materialId];
+}
+
+uint32_t createTexture(const std::string& fileName, ETextureType type, VkQueue queue, VkCommandPool commandPool, VkDescriptorSet descriptorSet)
+{
+    
     int width, height;
     VkDeviceSize imageSize;
-    stbi_uc* imageData = loadTextureImageFile(fileName, &width, &height, &imageSize);
-
+    stbi_uc* imageData;
+    if (!fileName.empty())
+        imageData = loadTextureImageFile(fileName, &width, &height, &imageSize);
+    else
+        imageData = loadTextureImageFile("plain.png", &width, &height, &imageSize);
+    
     Buffer stagingBuffer;
     stagingBuffer.Init(device, physicalDevice, imageSize,
                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -98,7 +125,36 @@ uint32_t MaterialManager::CreateTexture(const std::string& fileName, VkQueue que
     stagingBuffer.Destroy(device);
 
     uint32_t id = static_cast<uint32_t>(textureImages.size())-1;
+
+    VkDescriptorImageInfo imageInfo = {};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = textureImages[id].GetImageView();
+
+    if (type == ETextureType::DIFFUSE) imageInfo.sampler = textureSampler;
+    if (type == ETextureType::SPECULAR) imageInfo.sampler = specularSampler;
+    if (type == ETextureType::NORMAL) imageInfo.sampler = normalSampler;
+
+    VkWriteDescriptorSet descriptorWrite = {};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = descriptorSet;
+
+    if (type == ETextureType::DIFFUSE) descriptorWrite.dstBinding = 0;
+    if (type == ETextureType::SPECULAR) descriptorWrite.dstBinding = 1;
+    if (type == ETextureType::NORMAL) descriptorWrite.dstBinding = 2;
     
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+
+    return id;
+}
+
+uint32_t MaterialManager::CreateMaterial(const std::string& diffuse, const std::string& specular,
+    const std::string& normal, VkQueue queue, VkCommandPool commandPool)
+{
     VkDescriptorSet descriptorSet;
 
     VkDescriptorSetAllocateInfo descriptorSetAllocInfo = {};
@@ -109,28 +165,16 @@ uint32_t MaterialManager::CreateTexture(const std::string& fileName, VkQueue que
 
     VkResult result = vkAllocateDescriptorSets(device, &descriptorSetAllocInfo, &descriptorSet);
     CHECK_VK_RESULT(result, "Failed to allocate Descriptor Set for Image");
-
-    VkDescriptorImageInfo imageInfo = {};
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = textureImages[id].GetImageView();
-    imageInfo.sampler = textureSampler;
-
-    VkWriteDescriptorSet descriptorWrite = {};
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet = descriptorSet;
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pImageInfo = &imageInfo;
-
-    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
-    samplerDescriptorSets.push_back(descriptorSet);
-
-    if ((static_cast<uint32_t>(samplerDescriptorSets.size())-1) != id)
-        throw std::runtime_error("WTF happened");
     
-    return id;
+    Material mat = {};
+    mat.diffuse = createTexture(diffuse, ETextureType::DIFFUSE, queue, commandPool, descriptorSet);
+    mat.specular = createTexture(specular, ETextureType::SPECULAR, queue, commandPool, descriptorSet);
+    mat.normal = createTexture(normal, ETextureType::NORMAL, queue, commandPool, descriptorSet);
+    
+    materials.push_back(mat);
+    samplerDescriptorSets.push_back(descriptorSet);
+    
+    return static_cast<uint32_t>(samplerDescriptorSets.size())-1;
 }
 
 void createSetLayout()
@@ -142,10 +186,31 @@ void createSetLayout()
     samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     samplerLayoutBinding.pImmutableSamplers = nullptr;
 
+    VkDescriptorSetLayoutBinding specularLayoutBinding;
+    specularLayoutBinding.binding = 1;
+    specularLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    specularLayoutBinding.descriptorCount = 1;
+    specularLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    specularLayoutBinding.pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutBinding normalLayoutBinding;
+    normalLayoutBinding.binding = 2;
+    normalLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    normalLayoutBinding.descriptorCount = 1;
+    normalLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    normalLayoutBinding.pImmutableSamplers = nullptr;
+
+    std::vector<VkDescriptorSetLayoutBinding> bindings =
+    {
+        samplerLayoutBinding,
+        specularLayoutBinding,
+        normalLayoutBinding
+    };
+
     VkDescriptorSetLayoutCreateInfo layoutCreateInfo = {};
     layoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutCreateInfo.bindingCount = 1;
-    layoutCreateInfo.pBindings = &samplerLayoutBinding;
+    layoutCreateInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+    layoutCreateInfo.pBindings = bindings.data();
 
     VkResult result = vkCreateDescriptorSetLayout(device, &layoutCreateInfo, nullptr, &samplerSetLayout);
     CHECK_VK_RESULT(result, "Failed to create Sampler Descriptor Layout");
@@ -193,6 +258,12 @@ void createSampler()
 
     VkResult result = vkCreateSampler(device, &samplerCreateInfo, nullptr, &textureSampler);
     CHECK_VK_RESULT(result, "Failed to create Texture Sampler");
+
+    result = vkCreateSampler(device, &samplerCreateInfo, nullptr, &normalSampler);
+    CHECK_VK_RESULT(result, "Failed to create Normal Sampler");
+
+    result = vkCreateSampler(device, &samplerCreateInfo, nullptr, &specularSampler);
+    CHECK_VK_RESULT(result, "Failed to create Specular Sampler");
 }
 
 

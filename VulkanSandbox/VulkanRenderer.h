@@ -30,6 +30,8 @@ private:
 
 	// Scene
 	std::vector<Object*> m_objects;
+	UboPointLight m_pointLight;
+	UniformBuffer<UboPointLight> m_uboPointLight;
 	
 	// Vulkan Components
 	

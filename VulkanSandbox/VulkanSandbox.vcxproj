@@ -123,6 +123,7 @@
   <ItemGroup>
     <Content Include="shaders\compileShaders.bat" />
     <Content Include="shaders\shader.frag" />
+    <Content Include="shaders\shader.tese" />
     <Content Include="shaders\shader.vert" />
     <Content Include="textures\SmallBuilding01.png" />
   </ItemGroup>

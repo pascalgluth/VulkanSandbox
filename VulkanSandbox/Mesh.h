@@ -27,7 +27,7 @@ private:
     VkDevice m_device;
     VkPhysicalDevice m_physicalDevice;
 
-    uint32_t m_materialId = 0;
+    uint32_t m_materialId;
     
     glm::mat4 m_transform;
     
