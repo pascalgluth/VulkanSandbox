@@ -1,5 +1,7 @@
 ﻿#include "Mesh.h"
 
+#include <cstring>
+
 Mesh::Mesh()
 {
 }

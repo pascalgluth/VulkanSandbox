@@ -15,7 +15,7 @@
 const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
     VK_KHR_MAINTENANCE1_EXTENSION_NAME,
-#ifndef _WIN32
+#ifdef __APPLE__
     "VK_KHR_portability_subset",
 #endif
 };

@@ -12,11 +12,37 @@ file(GLOB SOURCES
 add_executable(VulkanSandbox ${SOURCES})
 
 find_package(Vulkan REQUIRED)
-target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARIES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${Vulkan_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARIES})
 
 find_package(SDL2 REQUIRED)
-include_directories(${PROJECT_NAME} ${SDL2_INCLUDE_DIRS})
+target_include_directories(${PROJECT_NAME} PUBLIC ${SDL2_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${SDL2_LIBRARIES})
 
-include_directories(${PROJECT_NAME} Libs/include)
+find_package(ASSIMP REQUIRED)
+target_include_directories(${PROJECT_NAME} PUBLIC ${ASSIMP_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME} ${ASSIMP_LIBRARIES})
+
+target_include_directories(${PROJECT_NAME} PUBLIC Libs/include-linux)
+
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/shaders)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/objects)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/textures)
+
+add_custom_command(
+        TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_SOURCE_DIR}/VulkanSandbox/shaders/*.spv
+        ${CMAKE_BINARY_DIR}/shaders)
+
+add_custom_command(
+        TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_SOURCE_DIR}/VulkanSandbox/objects/*
+        ${CMAKE_BINARY_DIR}/objects)
+
+add_custom_command(
+        TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_SOURCE_DIR}/VulkanSandbox/textures/*
+        ${CMAKE_BINARY_DIR}/textures)

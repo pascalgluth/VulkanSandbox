@@ -4,7 +4,7 @@
 bin/*.exe
 bin/*.pdb
 bin-int
-VulkanSandbox/shaderes/*.spv
+VulkanSandbox/shaders/*.spv
 cmake-build-debug
 CMakeFiles
 CMakeScripts
