@@ -22,12 +22,15 @@ const std::vector<const char*> deviceExtensions = {
 
 constexpr uint32_t MAX_TEXTURE_COUNT = 256;
 
-struct UboPointLight
+struct UboDirLight
 {
-    glm::vec4 position;
-    glm::vec4 ambient;
-    glm::vec4 diffuse;
-    glm::vec4 specular;
+    glm::vec4 direction;
+};
+
+struct PushModel
+{
+    glm::mat4 model;
+    uint32_t shaded;
 };
 
 struct Vertex
@@ -213,4 +216,88 @@ static VkSampleCountFlagBits getMaxUsableSampleCount(VkPhysicalDevice physicalDe
     if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
 
     return VK_SAMPLE_COUNT_1_BIT;
+}
+
+static VkPipelineShaderStageCreateInfo loadShader(VkDevice device, const std::string& file, VkShaderStageFlagBits stage)
+{
+    auto shaderSpv = readFile("shaders/" + file);
+
+    VkShaderModuleCreateInfo shaderModuleCreateInfo = {};
+    shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    shaderModuleCreateInfo.codeSize = shaderSpv.size();
+    shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(shaderSpv.data());
+
+    VkShaderModule shaderModule;
+    VkResult result = vkCreateShaderModule(device, &shaderModuleCreateInfo, nullptr, &shaderModule);
+    CHECK_VK_RESULT(result, "Failed to create Shader Module");
+
+    VkPipelineShaderStageCreateInfo shaderStageCreateInfo = {};
+    shaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStageCreateInfo.stage = stage;
+    shaderStageCreateInfo.module = shaderModule;
+    shaderStageCreateInfo.pName = "main";
+
+    return shaderStageCreateInfo;
+}
+
+static VkPipelineViewportStateCreateInfo defaultViewportFlipped(VkExtent2D extent)
+{
+    static VkViewport viewport = {};
+    viewport.x = 0.f;
+    viewport.y = static_cast<float>(extent.height);
+    viewport.width = static_cast<float>(extent.width);
+    viewport.height = -static_cast<float>(extent.height);
+    viewport.minDepth = 0.f;
+    viewport.maxDepth = 1.f;
+
+    static VkRect2D scissor = {};
+    scissor.offset = { 0, 0 };
+    scissor.extent = extent;
+
+    VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
+    viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportStateCreateInfo.viewportCount = 1;
+    viewportStateCreateInfo.pViewports = &viewport;
+    viewportStateCreateInfo.scissorCount = 1;
+    viewportStateCreateInfo.pScissors = &scissor;
+
+    return viewportStateCreateInfo;
+}
+
+static VkPipelineViewportStateCreateInfo defaultViewport(VkExtent2D extent)
+{
+    static VkViewport viewport = {};
+    viewport.x = 0.f;
+    viewport.y = 0.f;
+    viewport.width = static_cast<float>(extent.width);
+    viewport.height = static_cast<float>(extent.height);
+    viewport.minDepth = 0.f;
+    viewport.maxDepth = 1.f;
+
+    static VkRect2D scissor = {};
+    scissor.offset = { 0, 0 };
+    scissor.extent = extent;
+
+    VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
+    viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportStateCreateInfo.viewportCount = 1;
+    viewportStateCreateInfo.pViewports = &viewport;
+    viewportStateCreateInfo.scissorCount = 1;
+    viewportStateCreateInfo.pScissors = &scissor;
+
+    return viewportStateCreateInfo;
+}
+
+static VkPipelineRasterizationStateCreateInfo defaultRasterizerCreateInfo(VkCullModeFlags cullMode, VkFrontFace frontFace, VkBool32 depthBiasEnabled)
+{
+    VkPipelineRasterizationStateCreateInfo rasterizerCreateInfo = {};
+    rasterizerCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizerCreateInfo.depthClampEnable = VK_FALSE;
+    rasterizerCreateInfo.rasterizerDiscardEnable = VK_FALSE;
+    rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizerCreateInfo.lineWidth = 1.f;
+    rasterizerCreateInfo.cullMode = cullMode;
+    rasterizerCreateInfo.frontFace = frontFace;
+    rasterizerCreateInfo.depthBiasEnable = depthBiasEnabled;
+    return rasterizerCreateInfo;
 }

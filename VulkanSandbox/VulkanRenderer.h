@@ -18,20 +18,25 @@ public:
 	~VulkanRenderer();
 	
 	void Init();
+	void Update(float deltaTime);
 	void Draw();
 	void Destroy();
 	
 private:
-
 	const int MAX_CONCURRENT_FRAMES = 3;
 
 	Mesh m_testMesh;
 	Camera m_camera;
 
+	float m_rad = 45.f;
+	glm::vec2 m_leftRight = { -10.f, 10.f };
+	glm::vec2 m_topBottom = { -10.f, 10.f };
+	glm::vec2 m_nearFar = { -10.f, 10.f };
+
 	// Scene
 	std::vector<Object*> m_objects;
-	UboPointLight m_pointLight;
-	UniformBuffer<UboPointLight> m_uboPointLight;
+	UboDirLight m_dirLight;
+	UniformBuffer<UboDirLight> m_uboPointLight;
 	
 	// Vulkan Components
 	
@@ -73,7 +78,10 @@ private:
 
 	// ImGui
 	VkDescriptorPool m_imguiDescriptorPool;
+	VkDescriptorSet m_guiShadowMapImage;
 	void renderImGui();
+
+	
 
 	// -- Vulkan Functions --
 
@@ -95,12 +103,28 @@ private:
 	
 	void recordCommands(uint32_t currentImage);
 
+	// Shadow Mapping
+	VkExtent2D m_shadowExtent; 
+	UniformBuffer<UboViewProjection> m_uboLightPerspective;
+	std::vector<Image> m_shadowMapImage;
+	VkPipeline m_shadowMapPassPipeline;
+	VkPipelineLayout m_shadowMapPassPipelineLayout;
+	VkRenderPass m_shadowMapRenderPass;
+	std::vector<VkFramebuffer> m_shadowMapFramebuffers;
+	VkSampler m_shadowMapSampler;
+	VkDescriptorSetLayout m_shadowMapSamplerLayout;
+	VkDescriptorPool m_shadowMapDescriptorPool;
+	std::vector<VkDescriptorSet> m_shadowMapDescriptorSets;
+	void createShadowMapSamplerDescriptor();
+	void createShadowMapImage();
+	void createShadowMapRenderPass();
+	void createShadowMapFrameBuffers();
+
 	// Get Functions
 	void getPhysicalDevice();
 	SwapChainDetails getSwapchainDetails(VkPhysicalDevice device);
 
 	// -- Create Functions --
-	VkShaderModule createShaderModule(const std::vector<char>& spv);
 	void createSynchronization();
 
 	// -- Support Functions --

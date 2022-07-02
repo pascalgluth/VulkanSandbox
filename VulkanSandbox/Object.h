@@ -8,7 +8,7 @@
 class Object
 {
 public:
-    Object();
+    Object(const std::string& name);
     ~Object();
 
     void Init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue transferQueue, VkCommandPool transferCommandPool, const std::string& modelFile);
@@ -22,12 +22,19 @@ public:
     const glm::vec3& GetPosition();
     void SetPosition(const glm::vec3& newPos);
 
+    void SetScale(const glm::vec3& scale);
+
+    std::string Name;
+    
 private:
     VkDevice m_device;
     VkPhysicalDevice m_physicalDevice;
 
+    glm::vec3 m_scale;
     glm::vec3 m_position;
     glm::mat4 m_transform;
+
+    void matrixUpdate();
 
     std::vector<uint32_t> m_materialIndices;
     std::vector<Mesh> m_meshes;

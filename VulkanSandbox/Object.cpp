@@ -6,11 +6,12 @@
 
 #include "MaterialManager.h"
 
-Object::Object()
+Object::Object(const std::string& name)
 {
-    m_transform = glm::mat4(1.f);
+    Name = name;
     m_position = { 0.f, 0.f, 0.f };
-
+    m_scale = { 1.f, 1.f, 1.f };
+    matrixUpdate();
 }
 
 Object::~Object()
@@ -42,7 +43,7 @@ void Object::Init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue tran
             if (material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS)
             {
                 std::string fileName = path.data;
-                int idx = fileName.rfind("\\");
+                int idx = fileName.rfind("/");
                 if (idx != std::string::npos) fileName = fileName.substr(idx+1);
                 
                diffuse = fileName;
@@ -112,8 +113,18 @@ const glm::vec3& Object::GetPosition()
 void Object::SetPosition(const glm::vec3& newPos)
 {
     m_position = newPos;
+    matrixUpdate();
+}
 
-    m_transform = glm::translate(glm::mat4(1.f), m_position);
+void Object::SetScale(const glm::vec3& scale)
+{
+    m_scale = scale;
+    matrixUpdate();
+}
+
+void Object::matrixUpdate()
+{
+    m_transform = glm::translate(glm::mat4(1.f), m_position) * glm::scale(glm::mat4(1.f), m_scale);
 }
 
 std::vector<Mesh> Object::LoadNode(VkQueue transferQueue, VkCommandPool transferCommandPool, aiNode* node,

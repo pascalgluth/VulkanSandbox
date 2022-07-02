@@ -52,6 +52,8 @@ void MaterialManager::Destroy()
     }
 
     vkDestroySampler(device, textureSampler, nullptr);
+    vkDestroySampler(device, specularSampler, nullptr);
+    vkDestroySampler(device, normalSampler, nullptr);
     
     vkDestroyDescriptorPool(device, samplerDescriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(device, samplerSetLayout, nullptr);
