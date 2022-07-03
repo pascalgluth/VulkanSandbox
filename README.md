@@ -28,10 +28,10 @@ Vulkan Sandbox Application
 - [x] Load Models
 - [x] Load Textures
 - [x] Add ImGui
-- [ ] Lighting
+- [x] Lighting
 - [ ] Lighting (Blinn-Phong)
 - [ ] Lighting (deferred)
-- [ ] Shadow Mapping
+- [x] Shadow Mapping
 - [ ] Bloom
 
 ### Triangle
