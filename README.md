@@ -1,7 +1,9 @@
 # VulkanSandbox
 Vulkan Sandbox Application
 
-### Setup
+## Setup
+
+### Windows
 
 #### Shaders
 
@@ -19,7 +21,19 @@ Vulkan Sandbox Application
 - In *VC++ Directories* (in VisualStudio Project properties) go to **Library Directories**
 - Change the Vulkan SDK Path to yours
 
-### To-Do
+### Linux / MacOS
+
+#### Libs
+
+- Install the VulkanSDK and set up its environment variables
+- Install SDL2 (apt install libsdl2-dev / brew install sdl2)
+- Install Assimp (apt install libassimp-dev / brew install assimp)
+
+#### CMake
+
+- Use a CMake IDE (e.g. CLion) or generate the Project
+
+## To-Do
 
 - [x] Draw First Triangle
 - [x] Multisample anti-aliasing
@@ -33,6 +47,8 @@ Vulkan Sandbox Application
 - [ ] Lighting (deferred)
 - [x] Shadow Mapping
 - [ ] Bloom
+
+## Progress
 
 ### Triangle
 
