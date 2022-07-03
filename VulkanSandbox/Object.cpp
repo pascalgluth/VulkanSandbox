@@ -122,6 +122,14 @@ void Object::SetScale(const glm::vec3& scale)
     matrixUpdate();
 }
 
+uint32_t Object::GetMaterialId(uint32_t index)
+{
+    if (index >= m_materialIndices.size())
+        throw std::runtime_error("Invalid Material Index: " + std::to_string(index) + " at Object: " + Name);
+    
+    return m_materialIndices[index];
+}
+
 void Object::matrixUpdate()
 {
     m_transform = glm::translate(glm::mat4(1.f), m_position) * glm::scale(glm::mat4(1.f), m_scale);
@@ -182,5 +190,5 @@ Mesh Object::LoadMesh(VkQueue transferQueue, VkCommandPool transferCommandPool, 
     if (mesh->mMaterialIndex >= m_materialIndices.size())
         return { m_device, m_physicalDevice, transferQueue, transferCommandPool, vertices, indices, parentTransform, 0 };
     
-    return { m_device, m_physicalDevice, transferQueue, transferCommandPool, vertices, indices, parentTransform, m_materialIndices[mesh->mMaterialIndex] };
+    return { m_device, m_physicalDevice, transferQueue, transferCommandPool, vertices, indices, parentTransform, mesh->mMaterialIndex };
 }

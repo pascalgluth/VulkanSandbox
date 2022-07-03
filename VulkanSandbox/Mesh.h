@@ -21,13 +21,13 @@ public:
     Buffer* GetIndexBuffer();
 
     const glm::mat4& GetTransform();
-    uint32_t GetMaterialId();
+    uint32_t GetMaterialIndex();
 
 private:
     VkDevice m_device;
     VkPhysicalDevice m_physicalDevice;
 
-    uint32_t m_materialId;
+    uint32_t m_materialIndex;
     
     glm::mat4 m_transform;
     

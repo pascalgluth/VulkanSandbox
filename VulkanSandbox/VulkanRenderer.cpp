@@ -33,10 +33,7 @@ void VulkanRenderer::Init()
         createLogicalDevice();
         createSwapchain();
         createDepthBufferImage();
-        createShadowMapImage();
         createRenderPass();
-        createShadowMapRenderPass();
-        createShadowMapSamplerDescriptor();
         
         m_uboViewProjection.Init(m_device.logicalDevice, m_device.physicalDevice,
             VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0,
@@ -46,15 +43,29 @@ void VulkanRenderer::Init()
             VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0,
             static_cast<uint32_t>(m_swapchainImages.size()));
 
-        m_uboLightPerspective.Init(m_device.logicalDevice, m_device.physicalDevice,
-            VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0,
+        m_uboFragSettings.Init(m_device.logicalDevice, m_device.physicalDevice,
+            VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0,
             static_cast<uint32_t>(m_swapchainImages.size()));
 
         MaterialManager::Init(m_device.logicalDevice, m_device.physicalDevice);
+
+        m_dlShadowMap.Init(m_device.logicalDevice, m_device.physicalDevice,
+            static_cast<uint32_t>(m_swapchainImages.size()), 1024, 1024,
+            0);
+
+        m_slShadowMap.Init(m_device.logicalDevice, m_device.physicalDevice,
+            static_cast<uint32_t>(m_swapchainImages.size()), 1024, 1024,
+            1);
+
+        ShadowMap::StaticInit(m_device.logicalDevice, static_cast<uint32_t>(m_swapchainImages.size()));
+
+        m_dlShadowMap.FinishInit(0);
+        m_slShadowMap.FinishInit(1);
+
+        ShadowMap::UpdateDescriptorSets(m_device.logicalDevice, static_cast<uint32_t>(m_swapchainImages.size()));
         
         createPipeline();
         createFrameBuffers();
-        createShadowMapFrameBuffers();
         createCommandPool();
         createGraphicsCommandBuffer();
         createSynchronization();
@@ -65,10 +76,11 @@ void VulkanRenderer::Init()
         m_camera.AddPositionOffset(-25.2f, 23.36f, 29.65f);
         m_camera.AddRotation(-13.f, -65.f, 0.f);
         
-        auto obj = new Object("Block");
+        auto obj = new Object("Building");
         m_objects.push_back(obj);
-        obj->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/Untitled-2.obj");
-        obj->SetPosition({0.f, 0.f, 0.f});
+        obj->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/SmallBuilding01.obj");
+        obj->SetPosition({0.f, -8.7f, 0.f});
+        obj->SetScale({10.f, 10.f, 10.f});
 
         auto obj2 = new Object("Ground");
         m_objects.push_back(obj2);
@@ -79,7 +91,7 @@ void VulkanRenderer::Init()
         auto light = new Object("Light");
         m_objects.push_back(light);
         light->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/light.obj");
-        light->SetPosition(glm::vec3(0.f, 5.f, 10.f));
+        //light->SetPosition(glm::vec3(0.f, 5.f, 10.f));
         light->SetScale(glm::vec3(0.5f, 0.5f, 0.5f));
     }
     catch (const std::runtime_error& err)
@@ -121,10 +133,9 @@ void VulkanRenderer::Update(float deltaTime)
         firstPos = currentPos;
     }
 
-    glm::vec3 vec = { 0.f, 10.f, 0.f };
+    glm::vec3 vec = { 0.f, 30.f, 0.f };
     vec = glm::rotate(vec, glm::radians(m_rad), glm::vec3(1.f, 0.f, 0.f));
     m_objects[2]->SetPosition(vec);
-
 }
 
 void VulkanRenderer::Destroy()
@@ -135,6 +146,15 @@ void VulkanRenderer::Destroy()
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(m_device.logicalDevice, m_imguiDescriptorPool, nullptr);
+
+    m_uboPointLight.Destroy();
+    m_uboViewProjection.Destroy();
+    MaterialManager::Destroy();
+    m_uboFragSettings.Destroy();
+
+    m_dlShadowMap.Destroy();
+    m_slShadowMap.Destroy();
+    ShadowMap::StaticDestroy(m_device.logicalDevice);
 
     //m_testMesh.Destroy();
     for (size_t i = 0; i < m_objects.size(); ++i)
@@ -163,7 +183,6 @@ void VulkanRenderer::Destroy()
     for (size_t i = 0; i < m_depthBufferImage.size(); ++i)
     {
         m_depthBufferImage[i].Destroy(m_device.logicalDevice);
-        m_shadowMapImage[i].Destroy(m_device.logicalDevice);
     }
 
     for (size_t i = 0; i < m_swapchainFrameBuffers.size(); ++i)
@@ -174,10 +193,6 @@ void VulkanRenderer::Destroy()
     vkDestroyPipeline(m_device.logicalDevice, m_graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(m_device.logicalDevice, m_graphicsPipelineLayout, nullptr);
 
-    m_uboPointLight.Destroy();
-    m_uboViewProjection.Destroy();
-    MaterialManager::Destroy();
-    
     for (size_t i = 0; i < m_swapchainImages.size(); ++i)
     {
         vkDestroyImageView(m_device.logicalDevice, m_swapchainImages[i].imageView, nullptr);
@@ -206,27 +221,33 @@ void VulkanRenderer::Draw()
     vkAcquireNextImageKHR(m_device.logicalDevice, m_swapchain, 0x7FFFFFFF, m_imageAvailable[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
     //m_uboLightPerspective.Data.view = glm::lookAt(glm::vec3(0.f, 4.f, 0.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
-    
-    m_uboLightPerspective.Data.view = glm::mat4(glm::angleAxis(glm::radians(m_rad), glm::vec3(1.f, 0.f, 0.f)));
-    //m_uboLightPerspective.Data.view = glm::mat4(1.f);
-    //m_uboLightPerspective.Data.view = glm::lookAt(m_objects[2]->GetPosition(), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
 
-    float width = static_cast<float>(m_shadowExtent.width);
-    float height = static_cast<float>(m_shadowExtent.height);
-    
-    m_uboLightPerspective.Data.projection = glm::orthoZO(m_leftRight.x, m_leftRight.y, m_topBottom.x, m_topBottom.y, m_nearFar.x, m_nearFar.y);
+    m_dlShadowMap.PerspectiveData()->view = glm::mat4(glm::angleAxis(glm::radians(m_rad), glm::vec3(1.f, 0.f, 0.f)));
+    m_dlShadowMap.PerspectiveData()->projection = glm::orthoZO(m_leftRight.x, m_leftRight.y, m_topBottom.x, m_topBottom.y, m_nearFar.x, m_nearFar.y);
+    m_dlShadowMap.UpdateUbo(imageIndex);
 
-    //m_uboLightPerspective.Data.projection = glm::perspective(glm::radians(120.f), (float)m_shadowExtent.width/(float)m_shadowExtent.height, 0.1f, 1000.f);
-    m_uboLightPerspective.Update(imageIndex);
+    glm::vec3 position = m_uboPointLight.Data.slPosition;
+    glm::vec3 direction = glm::vec3(m_uboPointLight.Data.slDirection) + position;
+
+    glm::mat4 view = glm::lookAt(position, direction, glm::vec3(0.f, 1.f, 0.f));
+    
+    m_slShadowMap.PerspectiveData()->view = view;
+    m_slShadowMap.PerspectiveData()->projection = glm::perspectiveZO(90.f, 1.f, 1.f, 250.f);
+    //m_slShadowMap.PerspectiveData()->view = glm::mat4(glm::angleAxis(glm::radians(m_rad), glm::vec3(1.f, 0.f, 0.f)));
+    //m_slShadowMap.PerspectiveData()->projection = glm::orthoZO(m_leftRight.x, m_leftRight.y, m_topBottom.x, m_topBottom.y, m_nearFar.x, m_nearFar.y);
+    m_slShadowMap.UpdateUbo(imageIndex);
     
     m_uboViewProjection.Data.view = m_camera.GetViewMatrix();
     m_uboViewProjection.Data.projection = m_camera.GetProjectionMatrix();
     m_uboViewProjection.Data.camPosition = glm::vec4(m_camera.GetPosition(), 1.f);
-    m_uboViewProjection.Data.lightSpace = m_uboLightPerspective.Data.view * m_uboLightPerspective.Data.projection;
+    m_uboViewProjection.Data.lightSpace = m_dlShadowMap.PerspectiveData()->projection * m_dlShadowMap.PerspectiveData()->view;
+    m_uboViewProjection.Data.spotLightSpace = m_slShadowMap.PerspectiveData()->projection * m_slShadowMap.PerspectiveData()->view;
     m_uboViewProjection.Update(imageIndex);
     
     m_uboPointLight.Data = m_dirLight;
     m_uboPointLight.Update(imageIndex);
+
+    m_uboFragSettings.Update(imageIndex);
     
     recordCommands(imageIndex);
 
@@ -353,10 +374,19 @@ void VulkanRenderer::renderImGui()
     if (focus) ImGui::SetNextWindowFocus();
     ImGui::Begin("Directional Light");
     {
-        ImGui::DragFloat3("Direction", &m_dirLight.direction.x, 0.01f, -1.f, 1.f);
+        ImGui::DragFloat3("Direction", &m_dirLight.dlDirection.x, 0.01f, -1.f, 1.f);
     }
     ImGui::End();
-    
+
+    if (focus) ImGui::SetNextWindowFocus();
+    ImGui::Begin("Spot Light");
+    {
+        ImGui::DragFloat3("Position", &m_dirLight.slPosition.x, 0.01f);
+        ImGui::DragFloat3("Direction", &m_dirLight.slDirection.x, 0.01f, -1.f, 1.f);
+        ImGui::DragFloat("Strength", &m_dirLight.slStrength, 0.01f);
+        ImGui::DragFloat("Cutoff", &m_dirLight.slCutoff, 0.01f);
+    }
+    ImGui::End();
 
     if (focus) ImGui::SetNextWindowFocus();
     ImGui::Begin("Selected Object");
@@ -377,13 +407,16 @@ void VulkanRenderer::renderImGui()
     ImGui::End();
     
 
-    if (focus) ImGui::SetNextWindowFocus();
+    /*if (focus) ImGui::SetNextWindowFocus();
     ImGui::Begin("Shadow Map");
     {
+        static bool drawShadowMapToScene;
+        if (ImGui::Checkbox("Draw Shadowmap", &drawShadowMapToScene))
+            drawShadowMapToScene ? m_uboFragSettings.Data.bDrawShadowDepth = 1 : m_uboFragSettings.Data.bDrawShadowDepth = 0;
         
         ImGui::Image(m_guiShadowMapImage, ImVec2(256, 256));
     }
-    ImGui::End();
+    ImGui::End();*/
 
     if (focus)
     {
@@ -400,9 +433,6 @@ void VulkanRenderer::renderImGui()
 
         ImGui::EndMainMenuBar();
     }
-
-    
-
 
     /*ImGui::Begin("Building");
     {
@@ -618,7 +648,7 @@ void VulkanRenderer::createPipeline()
     // -- RASTERIZER --
 
     VkPipelineRasterizationStateCreateInfo rasterizerCreateInfo =
-        defaultRasterizerCreateInfo(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE);
+        defaultRasterizerCreateInfo(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE);
     
     // -- MULTISAMPLING --
 
@@ -657,7 +687,8 @@ void VulkanRenderer::createPipeline()
         m_uboViewProjection.GetLayout(),
         MaterialManager::GetDescriptorSetLayout(),
         m_uboPointLight.GetLayout(),
-        m_shadowMapSamplerLayout
+        ShadowMap::GetDescriptorSetLayout(),
+        m_uboFragSettings.GetLayout()
     };
 
     pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(setLayouts.size());
@@ -698,42 +729,6 @@ void VulkanRenderer::createPipeline()
 
     result = vkCreateGraphicsPipelines(m_device.logicalDevice, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &m_graphicsPipeline);
     CHECK_VK_RESULT(result, "Failed to create Graphics Pipeline");
-
-    //
-    //
-
-    VkPipelineShaderStageCreateInfo shaderStages2[] = { loadShader(m_device.logicalDevice, "depthMap.vert.spv", VK_SHADER_STAGE_VERTEX_BIT) };
-
-    multisampleCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    viewportStateCreateInfo = defaultViewport(m_shadowExtent);
-
-    std::vector<VkDescriptorSetLayout> setLayouts2 = { m_uboLightPerspective.GetLayout() };
-
-    pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(setLayouts2.size());
-    pipelineLayoutCreateInfo.pSetLayouts = setLayouts2.data();
-
-    result = vkCreatePipelineLayout(m_device.logicalDevice, &pipelineLayoutCreateInfo, nullptr, &m_shadowMapPassPipelineLayout);
-    CHECK_VK_RESULT(result, "Failed to create Pipeline Layout");
-
-    pipelineCreateInfo.stageCount = 1;
-    pipelineCreateInfo.pStages = shaderStages2;
-    pipelineCreateInfo.pVertexInputState = &vertexInputStateCreateInfo;
-    pipelineCreateInfo.pInputAssemblyState = &inputAssemblyStageCreateInfo;
-    pipelineCreateInfo.pViewportState = &viewportStateCreateInfo;
-    pipelineCreateInfo.pDynamicState = nullptr;
-    pipelineCreateInfo.pRasterizationState = &rasterizerCreateInfo;
-    pipelineCreateInfo.pMultisampleState = &multisampleCreateInfo;
-    pipelineCreateInfo.pColorBlendState = &colorBlendCreateInfo;
-    pipelineCreateInfo.pDepthStencilState = &depthStencilStateCreateInfo;
-    pipelineCreateInfo.layout = m_shadowMapPassPipelineLayout;
-    pipelineCreateInfo.renderPass = m_shadowMapRenderPass;
-    pipelineCreateInfo.subpass = 0;
-    pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
-    pipelineCreateInfo.basePipelineIndex = -1;
-
-    result = vkCreateGraphicsPipelines(m_device.logicalDevice, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &m_shadowMapPassPipeline);
-    CHECK_VK_RESULT(result, "Failed to create Graphics Pipeline");
 }
 
 void VulkanRenderer::createDepthBufferImage()
@@ -753,181 +748,6 @@ void VulkanRenderer::createDepthBufferImage()
             VK_IMAGE_ASPECT_DEPTH_BIT);
     }
     
-}
-
-void VulkanRenderer::createShadowMapSamplerDescriptor()
-{
-    VkDescriptorSetLayoutBinding layoutBinding = {};
-    layoutBinding.binding = 0;
-    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutBinding.descriptorCount = 1;
-    layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutBinding.pImmutableSamplers = nullptr;
-
-    VkDescriptorSetLayoutCreateInfo layoutCreateInfo = {};
-    layoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutCreateInfo.bindingCount = 1;
-    layoutCreateInfo.pBindings = &layoutBinding;
-
-    VkResult result = vkCreateDescriptorSetLayout(m_device.logicalDevice, &layoutCreateInfo, nullptr, &m_shadowMapSamplerLayout);
-    CHECK_VK_RESULT(result, "Failed to create Descriptor Set Layout");
-
-    VkDescriptorPoolSize poolSize = {};
-    poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize.descriptorCount = 1;
-
-    VkDescriptorPoolCreateInfo poolCreateInfo = {};
-    poolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolCreateInfo.maxSets = static_cast<uint32_t>(m_depthBufferImage.size());
-    poolCreateInfo.poolSizeCount = 1;
-    poolCreateInfo.pPoolSizes = &poolSize;
-
-    result = vkCreateDescriptorPool(m_device.logicalDevice, &poolCreateInfo, nullptr, &m_shadowMapDescriptorPool);
-    CHECK_VK_RESULT(result, "Failed to create Descriptor Pool");
-
-    for (size_t i = 0; i < m_shadowMapImage.size(); ++i)
-    {
-        VkDescriptorSet descriptorSet;
-        
-        VkDescriptorSetAllocateInfo descriptorSetAllocInfo = {};
-        descriptorSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        descriptorSetAllocInfo.descriptorPool = m_shadowMapDescriptorPool;
-        descriptorSetAllocInfo.descriptorSetCount = 1;
-        descriptorSetAllocInfo.pSetLayouts = &m_shadowMapSamplerLayout;
-
-        result = vkAllocateDescriptorSets(m_device.logicalDevice, &descriptorSetAllocInfo, &descriptorSet);
-        CHECK_VK_RESULT(result, "Failed to allocate Descriptor Set for Depth Image");
-        
-        VkDescriptorImageInfo imageInfo = {};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = m_shadowMapImage[i].GetImageView();
-        imageInfo.sampler = m_shadowMapSampler;
-
-        VkWriteDescriptorSet descriptorWrite = {};
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = descriptorSet;
-        descriptorWrite.dstBinding = 0;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pImageInfo = &imageInfo;
-
-        vkUpdateDescriptorSets(m_device.logicalDevice, 1, &descriptorWrite, 0, nullptr);
-        m_shadowMapDescriptorSets.push_back(descriptorSet);
-    }
-}
-
-void VulkanRenderer::createShadowMapImage()
-{
-    m_shadowMapImage.resize(m_swapchainImages.size());
-
-    m_shadowExtent.width = 1024;
-    m_shadowExtent.height = 1024;
-
-    for (size_t i = 0; i < m_shadowMapImage.size(); ++i)
-    {
-        m_shadowMapImage[i].Init(m_device.logicalDevice, m_device.physicalDevice,
-            m_shadowExtent.width, m_shadowExtent.height, m_depthBufferImageFormat,
-            VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
-            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            VK_IMAGE_ASPECT_DEPTH_BIT);
-    }
-
-    VkSamplerCreateInfo samplerCreateInfo = {};
-    samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
-    samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
-    samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    samplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-    samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerCreateInfo.mipLodBias = 0.f;
-    samplerCreateInfo.minLod = 0.f;
-    samplerCreateInfo.maxLod = 0.f;
-    samplerCreateInfo.anisotropyEnable = VK_FALSE;
-
-    VkResult result = vkCreateSampler(m_device.logicalDevice, &samplerCreateInfo, nullptr, &m_shadowMapSampler);
-    CHECK_VK_RESULT(result, "Failed to create Depth Image Sampler");
-
-}
-
-void VulkanRenderer::createShadowMapRenderPass()
-{
-    VkAttachmentDescription depthAttachment = {};
-    depthAttachment.format = m_depthBufferImageFormat;
-    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-
-    VkAttachmentReference depthAttachmentRef = {};
-    depthAttachmentRef.attachment = 0;
-    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription subpass = {};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 0;
-    subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-    std::array<VkSubpassDependency, 2> dependencies{};
-
-    dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    dependencies[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    dependencies[0].dstSubpass = 0;
-    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependencies[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-    dependencies[1].srcSubpass = 0;
-    dependencies[1].srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    dependencies[1].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-    dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-    VkRenderPassCreateInfo renderPassCreateInfo = {};
-    renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassCreateInfo.attachmentCount = 1;
-    renderPassCreateInfo.pAttachments = &depthAttachment;
-    renderPassCreateInfo.subpassCount = 1;
-    renderPassCreateInfo.pSubpasses = &subpass;
-    renderPassCreateInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
-    renderPassCreateInfo.pDependencies = dependencies.data();
-
-    VkResult result = vkCreateRenderPass(m_device.logicalDevice, &renderPassCreateInfo, nullptr, &m_shadowMapRenderPass);
-    CHECK_VK_RESULT(result, "Failed to create Render Pass");
-}
-
-void VulkanRenderer::createShadowMapFrameBuffers()
-{
-    m_shadowMapFramebuffers.resize(m_swapchainImages.size());
-
-    for (size_t i = 0; i < m_shadowMapFramebuffers.size(); ++i)
-    {
-        std::array<VkImageView, 1> attachments =
-        {
-            m_shadowMapImage[i].GetImageView()
-        };
-
-        VkFramebufferCreateInfo frameBufferCreateInfo = {};
-        frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        frameBufferCreateInfo.renderPass = m_shadowMapRenderPass;
-        frameBufferCreateInfo.width = m_shadowExtent.width;
-        frameBufferCreateInfo.height = m_shadowExtent.height;
-        frameBufferCreateInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-        frameBufferCreateInfo.pAttachments = attachments.data();
-        frameBufferCreateInfo.layers = 1;
-
-        VkResult result = vkCreateFramebuffer(m_device.logicalDevice, &frameBufferCreateInfo, nullptr, &m_shadowMapFramebuffers[i]);
-        CHECK_VK_RESULT(result, "Failed to create Framebuffer");
-    }
 }
 
 void VulkanRenderer::createFrameBuffers()
@@ -1113,7 +933,7 @@ void VulkanRenderer::initImGui()
 
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 
-    m_guiShadowMapImage = ImGui_ImplVulkan_AddTexture(m_shadowMapSampler, m_shadowMapImage[0].GetImageView(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+    m_guiShadowMapImage = ImGui_ImplVulkan_AddTexture(m_slShadowMap.GetSampler(), m_slShadowMap.GetAnImageView(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 }
 
 void VulkanRenderer::recordCommands(uint32_t currentImage)
@@ -1135,66 +955,11 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
     renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
     renderPassBeginInfo.pClearValues = clearValues.data();
     renderPassBeginInfo.framebuffer = m_swapchainFrameBuffers[currentImage];
-
-    std::array<VkClearValue, 1> clearValues0 = {};
-    clearValues0[0].depthStencil.depth = 1.f;
-    clearValues0[0].depthStencil.stencil = 0;
-
-    VkRenderPassBeginInfo renderPassBeginInfo0 = {};
-    renderPassBeginInfo0.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassBeginInfo0.renderPass = m_shadowMapRenderPass;
-    renderPassBeginInfo0.renderArea.offset = { 0, 0 };
-    renderPassBeginInfo0.renderArea.extent = m_shadowExtent;
-    renderPassBeginInfo0.clearValueCount = static_cast<uint32_t>(clearValues0.size());
-    renderPassBeginInfo0.pClearValues = clearValues0.data();
-    renderPassBeginInfo0.framebuffer = m_shadowMapFramebuffers[currentImage];
     
     if (vkBeginCommandBuffer(m_commandBuffers[currentImage], &commandBufferBeginInfo) == VK_SUCCESS)
     {
-        vkCmdBeginRenderPass(m_commandBuffers[currentImage], &renderPassBeginInfo0, VK_SUBPASS_CONTENTS_INLINE);
-        {
-            vkCmdBindPipeline(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowMapPassPipeline);
-
-            for (size_t j = 0; j < m_objects.size(); ++j)
-            {
-                if (m_objects[j]->Name == "Light")
-                    continue;
-                
-                const glm::mat4& objectTransform = m_objects[j]->GetTransform();
-                std::vector<Mesh>& meshes = m_objects[j]->GetMeshes();
-
-                for (size_t i = 0; i < meshes.size(); ++i)
-                {
-                    std::vector<VkDescriptorSet> descriptorSets =
-                    {
-                        m_uboLightPerspective.GetDescriptorSet(currentImage),
-                    };
-                
-                    vkCmdBindDescriptorSets(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipelineLayout,
-                        0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(),
-                        0, nullptr);
-                
-                    VkBuffer vertexBuffers[] = { meshes[i].GetVertexBuffer()->GetBuffer() };
-                    VkDeviceSize offsets[] = { 0 };
-                    vkCmdBindVertexBuffers(m_commandBuffers[currentImage], 0, 1, vertexBuffers, offsets);
-
-                    PushModel pushModel = {};
-                    pushModel.model = objectTransform * meshes[i].GetTransform();
-                    vkCmdPushConstants(m_commandBuffers[currentImage], m_graphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushModel), &pushModel);
-                
-                    if (meshes[i].Indexed())
-                    {
-                        vkCmdBindIndexBuffer(m_commandBuffers[currentImage], meshes[i].GetIndexBuffer()->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
-                        vkCmdDrawIndexed(m_commandBuffers[currentImage], meshes[i].GetIndexCount(), 1, 0, 0, 0);
-                    }
-                    else
-                    {
-                        vkCmdDraw(m_commandBuffers[currentImage], meshes[i].GetVertexCount(), 1, 0, 0);
-                    }
-                }
-            }
-        }
-        vkCmdEndRenderPass(m_commandBuffers[currentImage]);
+        m_dlShadowMap.RecordCommands(m_commandBuffers[currentImage], currentImage, m_objects);
+        m_slShadowMap.RecordCommands(m_commandBuffers[currentImage], currentImage, m_objects);
         
         vkCmdBeginRenderPass(m_commandBuffers[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
         {
@@ -1210,9 +975,10 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
                     std::vector<VkDescriptorSet> descriptorSets =
                     {
                         m_uboViewProjection.GetDescriptorSet(currentImage),
-                        MaterialManager::GetDescriptorSet(meshes[i].GetMaterialId()),
+                        MaterialManager::GetDescriptorSet(m_objects[j]->GetMaterialId(meshes[i].GetMaterialIndex())),
                         m_uboPointLight.GetDescriptorSet(currentImage),
-                        m_shadowMapDescriptorSets[currentImage]
+                        ShadowMap::GetDescriptorSet(currentImage),
+                        m_uboFragSettings.GetDescriptorSet(currentImage)
                     };
                 
                     vkCmdBindDescriptorSets(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipelineLayout,
@@ -1225,8 +991,9 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
 
                     PushModel pushModel = {};
                     pushModel.model = objectTransform * meshes[i].GetTransform();
-                    if (m_objects[j]->Name == "Light") pushModel.shaded = 0;
+                    if (m_objects[j]->Name == "Light" || m_objects[j]->Name == "Block") pushModel.shaded = 0;
                     else pushModel.shaded = 1;
+                    //pushModel.shaded = 1;
                     vkCmdPushConstants(m_commandBuffers[currentImage], m_graphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushModel), &pushModel);
                 
                     if (meshes[i].Indexed())

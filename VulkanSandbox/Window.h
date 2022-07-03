@@ -16,5 +16,6 @@ public:
 
 private:
 	SDL_Window* m_window;
+	SDL_Surface* m_icon;
 	
 };

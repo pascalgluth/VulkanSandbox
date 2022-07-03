@@ -25,6 +25,8 @@ public:
     void SetScale(const glm::vec3& scale);
 
     std::string Name;
+
+    uint32_t GetMaterialId(uint32_t index);
     
 private:
     VkDevice m_device;

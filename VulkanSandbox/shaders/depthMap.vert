@@ -10,6 +10,7 @@ layout(binding = 0) uniform UboViewProjection
     mat4 projection;
     vec4 camPos;
     mat4 lightSpace;
+    mat4 spotLightSpace;
 } uboVP;
 
 layout(push_constant) uniform PushModelTransform

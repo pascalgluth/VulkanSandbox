@@ -10,6 +10,7 @@ layout(binding = 0) uniform UboViewProjection
     mat4 projection;
     vec4 camPos;
     mat4 lightSpace;
+    mat4 spotLightSpace;
 } uboVP;
 
 layout(push_constant) uniform PushModelTransform
@@ -23,7 +24,8 @@ layout(location = 1) out vec3 outWorldPos;
 layout(location = 2) out vec3 outNormal;
 layout(location = 3) out vec3 outCamPos;
 layout(location = 4) out vec4 outShadowCoord;
-layout(location = 5) out uint outShaded;
+layout(location = 5) out vec4 outSpotLightShadowCoord;
+layout(location = 6) out uint outShaded;
 
 const mat4 biasMat = mat4
 (
@@ -41,5 +43,6 @@ void main()
     outNormal = normalize(inNormal);
     outCamPos = uboVP.camPos.rgb;
     outShadowCoord = uboVP.lightSpace * vec4(outWorldPos, 1.0);
+    outSpotLightShadowCoord = uboVP.spotLightSpace * vec4(outWorldPos, 1.0);
     outShaded = pushModel.shaded;
 }

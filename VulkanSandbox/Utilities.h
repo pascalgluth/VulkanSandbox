@@ -22,9 +22,19 @@ const std::vector<const char*> deviceExtensions = {
 
 constexpr uint32_t MAX_TEXTURE_COUNT = 256;
 
+struct UboFragSettings
+{
+    uint32_t bDrawShadowDepth;
+};
+
 struct UboDirLight
 {
-    glm::vec4 direction;
+    glm::vec4 dlDirection = { 0.f, -1.f, -1.f, 0.f };
+
+    glm::vec4 slPosition = { 0.f, 1.5f, 150.f, 0.f };
+    glm::vec4 slDirection = { 0.f, 0.f, -1.f, 0.f };
+    float slStrength = 10.f;
+    float slCutoff = 60.f;
 };
 
 struct PushModel

@@ -9,6 +9,7 @@
 #include "Image.h"
 #include "Mesh.h"
 #include "Object.h"
+#include "ShadowMap.h"
 #include "UniformBuffer.h"
 
 class VulkanRenderer
@@ -29,9 +30,9 @@ private:
 	Camera m_camera;
 
 	float m_rad = 45.f;
-	glm::vec2 m_leftRight = { -10.f, 10.f };
-	glm::vec2 m_topBottom = { -10.f, 10.f };
-	glm::vec2 m_nearFar = { -10.f, 10.f };
+	glm::vec2 m_leftRight = { -250.f, 250.f };
+	glm::vec2 m_topBottom = { -250.f, 250.f };
+	glm::vec2 m_nearFar = { -250.f, 250.f };
 
 	// Scene
 	std::vector<Object*> m_objects;
@@ -98,28 +99,16 @@ private:
 	void createGraphicsCommandBuffer();
 	
 	UniformBuffer<UboViewProjection> m_uboViewProjection;
+	UniformBuffer<UboFragSettings> m_uboFragSettings;
 	
 	void initImGui();
 	
 	void recordCommands(uint32_t currentImage);
 
 	// Shadow Mapping
-	VkExtent2D m_shadowExtent; 
-	UniformBuffer<UboViewProjection> m_uboLightPerspective;
-	std::vector<Image> m_shadowMapImage;
-	VkPipeline m_shadowMapPassPipeline;
-	VkPipelineLayout m_shadowMapPassPipelineLayout;
-	VkRenderPass m_shadowMapRenderPass;
-	std::vector<VkFramebuffer> m_shadowMapFramebuffers;
-	VkSampler m_shadowMapSampler;
-	VkDescriptorSetLayout m_shadowMapSamplerLayout;
-	VkDescriptorPool m_shadowMapDescriptorPool;
-	std::vector<VkDescriptorSet> m_shadowMapDescriptorSets;
-	void createShadowMapSamplerDescriptor();
-	void createShadowMapImage();
-	void createShadowMapRenderPass();
-	void createShadowMapFrameBuffers();
-
+	ShadowMap m_dlShadowMap;
+	ShadowMap m_slShadowMap;
+	
 	// Get Functions
 	void getPhysicalDevice();
 	SwapChainDetails getSwapchainDetails(VkPhysicalDevice device);

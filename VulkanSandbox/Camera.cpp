@@ -57,6 +57,8 @@ void Camera::SetPosition(const glm::vec3& newPos)
 
 void Camera::SetRotation(const glm::vec3& newRot)
 {
+    m_pitch = newRot.y;
+    m_yaw = newRot.z;
     
     onPosUpdate();
 }

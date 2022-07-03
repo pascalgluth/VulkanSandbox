@@ -13,6 +13,7 @@ struct UboViewProjection
     glm::mat4 projection;
     glm::vec4 camPosition;
     glm::mat4 lightSpace;
+    glm::mat4 spotLightSpace;
 };
 
 class Camera
