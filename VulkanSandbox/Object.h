@@ -9,11 +9,11 @@ class Object
 {
 public:
     Object(const std::string& name);
-    ~Object();
+    virtual ~Object();
 
-    void Init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue transferQueue, VkCommandPool transferCommandPool, const std::string& modelFile);
-    void Update(float deltaTime);
-    void Destroy();
+    virtual void Init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue transferQueue, VkCommandPool transferCommandPool, const std::string& modelFile);
+    virtual void Update(float deltaTime);
+    virtual void Destroy();
 
     std::vector<Mesh>& GetMeshes();
 
@@ -28,7 +28,7 @@ public:
 
     uint32_t GetMaterialId(uint32_t index);
     
-private:
+protected:
     VkDevice m_device;
     VkPhysicalDevice m_physicalDevice;
 

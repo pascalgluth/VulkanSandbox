@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "Camera.h"
+#include "HeightMapObject.h"
 #include "Utilities.h"
 #include "Image.h"
 #include "Mesh.h"
@@ -26,13 +27,15 @@ public:
 private:
 	const int MAX_CONCURRENT_FRAMES = 3;
 
+	HeightMapObject m_terrain;
+
 	Mesh m_testMesh;
 	Camera m_camera;
 
 	float m_rad = 45.f;
-	glm::vec2 m_leftRight = { -250.f, 250.f };
-	glm::vec2 m_topBottom = { -250.f, 250.f };
-	glm::vec2 m_nearFar = { -250.f, 250.f };
+	glm::vec2 m_leftRight = { -500.f, 500.f };
+	glm::vec2 m_topBottom = { -500.f, 500.f };
+	glm::vec2 m_nearFar = { -500.f, 500.f };
 
 	// Scene
 	std::vector<Object*> m_objects;
@@ -81,8 +84,6 @@ private:
 	VkDescriptorPool m_imguiDescriptorPool;
 	VkDescriptorSet m_guiShadowMapImage;
 	void renderImGui();
-
-	
 
 	// -- Vulkan Functions --
 
@@ -135,6 +136,8 @@ private:
 		"VK_LAYER_KHRONOS_validation"
 	};
 	bool checkValidationLayerSupport();
+
+	void(*cmdSetPrimitiveTopologyEXT)(VkCommandBuffer commandBuffer, VkPrimitiveTopology primitiveTopology);
 	
 };
 

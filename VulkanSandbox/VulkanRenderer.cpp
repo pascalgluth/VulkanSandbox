@@ -16,6 +16,7 @@
 #include "Window.h"
 
 VulkanRenderer::VulkanRenderer()
+    : m_terrain("Terrain")
 {
 }
 
@@ -50,11 +51,11 @@ void VulkanRenderer::Init()
         MaterialManager::Init(m_device.logicalDevice, m_device.physicalDevice);
 
         m_dlShadowMap.Init(m_device.logicalDevice, m_device.physicalDevice,
-            static_cast<uint32_t>(m_swapchainImages.size()), 1024, 1024,
+            static_cast<uint32_t>(m_swapchainImages.size()), 2048, 2048,
             0);
 
         m_slShadowMap.Init(m_device.logicalDevice, m_device.physicalDevice,
-            static_cast<uint32_t>(m_swapchainImages.size()), 1024, 1024,
+            static_cast<uint32_t>(m_swapchainImages.size()), 2048, 2048,
             1);
 
         ShadowMap::StaticInit(m_device.logicalDevice, static_cast<uint32_t>(m_swapchainImages.size()));
@@ -63,6 +64,7 @@ void VulkanRenderer::Init()
         m_slShadowMap.FinishInit(1);
 
         ShadowMap::UpdateDescriptorSets(m_device.logicalDevice, static_cast<uint32_t>(m_swapchainImages.size()));
+
         
         createPipeline();
         createFrameBuffers();
@@ -78,7 +80,7 @@ void VulkanRenderer::Init()
         
         auto obj = new Object("Building");
         m_objects.push_back(obj);
-        obj->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/SmallBuilding01.obj");
+        obj->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/Cottage_FREE.obj");
         obj->SetPosition({0.f, -8.7f, 0.f});
         obj->SetScale({10.f, 10.f, 10.f});
 
@@ -86,13 +88,15 @@ void VulkanRenderer::Init()
         m_objects.push_back(obj2);
         obj2->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/Untitled-1.obj");
         obj2->SetPosition({0.f, -25.f, 0.f});
-        obj2->SetScale({100.f, 0.5f, 800.f});
+        obj2->SetScale({0.1f, 0.1f, 0.1f});
 
         auto light = new Object("Light");
         m_objects.push_back(light);
         light->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/light.obj");
         //light->SetPosition(glm::vec3(0.f, 5.f, 10.f));
         light->SetScale(glm::vec3(0.5f, 0.5f, 0.5f));
+
+        m_terrain.Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "textures/heightmap-1.png");
     }
     catch (const std::runtime_error& err)
     {
@@ -469,6 +473,8 @@ void VulkanRenderer::createInstance()
     instanceExtensions.resize(sdlExtensionCount);
     SDL_Vulkan_GetInstanceExtensions(window, &sdlExtensionCount, instanceExtensions.data());
 
+    instanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+
     if (!checkInstanceExtensionSupport(instanceExtensions))
         throw std::runtime_error("Instance does not support required extensions by SDL");
 
@@ -488,6 +494,9 @@ void VulkanRenderer::createInstance()
     
     VkResult result = vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance);
     CHECK_VK_RESULT(result, "Failed to create Vulkan Instance");
+
+    cmdSetPrimitiveTopologyEXT = (PFN_vkCmdSetPrimitiveTopologyEXT)vkGetInstanceProcAddr(m_instance, "vkCmdSetPrimitiveTopologyEXT");
+    if (cmdSetPrimitiveTopologyEXT == nullptr) throw std::runtime_error("Failed to load vkCmdSetPrimitiveTopologyEXT");
 }
 
 void VulkanRenderer::createWindowSurface()
@@ -523,6 +532,12 @@ void VulkanRenderer::createLogicalDevice()
     deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
     deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
+    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT dynamicStateFeaturesEXT= {};
+    dynamicStateFeaturesEXT.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;
+    dynamicStateFeaturesEXT.extendedDynamicState = VK_TRUE;
+
+    deviceCreateInfo.pNext = &dynamicStateFeaturesEXT;
+    
     VkPhysicalDeviceFeatures deviceFeatures = {};
     deviceFeatures.samplerAnisotropy = VK_TRUE;
 
@@ -707,6 +722,13 @@ void VulkanRenderer::createPipeline()
     depthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
     depthStencilStateCreateInfo.stencilTestEnable = VK_FALSE;
 
+    VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY_EXT };
+
+    VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
+    dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicStateCreateInfo.dynamicStateCount = 1;
+    dynamicStateCreateInfo.pDynamicStates = dynamicStates;
+
     // -- PIPELINE CREATION --
 
     VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
@@ -716,7 +738,7 @@ void VulkanRenderer::createPipeline()
     pipelineCreateInfo.pVertexInputState = &vertexInputStateCreateInfo;
     pipelineCreateInfo.pInputAssemblyState = &inputAssemblyStageCreateInfo;
     pipelineCreateInfo.pViewportState = &viewportStateCreateInfo;
-    pipelineCreateInfo.pDynamicState = nullptr;
+    pipelineCreateInfo.pDynamicState = &dynamicStateCreateInfo;
     pipelineCreateInfo.pRasterizationState = &rasterizerCreateInfo;
     pipelineCreateInfo.pMultisampleState = &multisampleCreateInfo;
     pipelineCreateInfo.pColorBlendState = &colorBlendCreateInfo;
@@ -964,6 +986,7 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
         vkCmdBeginRenderPass(m_commandBuffers[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
         {
             vkCmdBindPipeline(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+            cmdSetPrimitiveTopologyEXT(m_commandBuffers[currentImage], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
             for (size_t j = 0; j < m_objects.size(); ++j)
             {
@@ -1005,8 +1028,40 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
                     {
                         vkCmdDraw(m_commandBuffers[currentImage], meshes[i].GetVertexCount(), 1, 0, 0);
                     }
+
+                    
+                    
                 }
             }
+
+            std::vector<VkDescriptorSet> descriptorSets =
+            {
+                m_uboViewProjection.GetDescriptorSet(currentImage),
+                MaterialManager::GetDescriptorSet(0),
+                m_uboPointLight.GetDescriptorSet(currentImage),
+                ShadowMap::GetDescriptorSet(currentImage),
+                m_uboFragSettings.GetDescriptorSet(currentImage)
+            };
+                
+            vkCmdBindDescriptorSets(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipelineLayout,
+                0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(),
+                0, nullptr);
+
+            std::vector<Mesh>& meshes = m_terrain.GetMeshes();
+            
+            VkBuffer vertexBuffers[] = { meshes[0].GetVertexBuffer()->GetBuffer() };
+            VkDeviceSize offsets[] = { 0 };
+            vkCmdBindVertexBuffers(m_commandBuffers[currentImage], 0, 1, vertexBuffers, offsets);
+            
+            PushModel pushModel = {};
+            pushModel.model = glm::mat4(1.f);
+            pushModel.shaded = 1;
+            vkCmdPushConstants(m_commandBuffers[currentImage], m_graphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushModel), &pushModel);
+
+            cmdSetPrimitiveTopologyEXT(m_commandBuffers[currentImage], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
+            
+            vkCmdBindIndexBuffer(m_commandBuffers[currentImage], meshes[0].GetIndexBuffer()->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(m_commandBuffers[currentImage], meshes[0].GetIndexCount(), 1, 0, 0, 0);
 
             ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_commandBuffers[currentImage]);
         }
