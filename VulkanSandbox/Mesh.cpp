@@ -1,5 +1,7 @@
 ﻿#include "Mesh.h"
 
+#include <cstring>
+
 Mesh::Mesh()
 {
 }
@@ -12,7 +14,7 @@ Mesh::Mesh(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue transferQue
     m_physicalDevice = physicalDevice;
 
     m_transform = parentTransform;
-    m_materialId = materialId;
+    m_materialIndex = materialId;
     
     indices.empty() ? m_indexed = false : m_indexed = true;
 
@@ -66,9 +68,9 @@ const glm::mat4& Mesh::GetTransform()
     return m_transform;
 }
 
-uint32_t Mesh::GetMaterialId()
+uint32_t Mesh::GetMaterialIndex()
 {
-    return m_materialId;
+    return m_materialIndex;
 }
 
 void Mesh::createVertexBuffer(VkQueue transferQueue, VkCommandPool transferCommandPool,

@@ -3,7 +3,8 @@
 Camera::Camera()
 {
     m_position = {0.f, 0.f, 0.f};
-    m_rotation = {0.f, 0.f, 0.f};
+    m_pitch = 0.f;
+    m_yaw = 0.f;
 
     onPosUpdate();
 }
@@ -20,17 +21,22 @@ void Camera::AddPositionOffset(float x, float y, float z)
     onPosUpdate();
 }
 
+void Camera::AddPositionOffset(const glm::vec3& offset)
+{
+    AddPositionOffset(offset.x, offset.y, offset.z);
+}
+
 void Camera::AddRotation(float roll, float pitch, float yaw)
 {
-    m_rotation.x += roll;
-    m_rotation.y += pitch;
-    m_rotation.z += yaw;
+    m_pitch += pitch;
+    m_yaw += yaw;
+    
     onPosUpdate();
 }
 
 void Camera::SetProjection(float fov, float aspectRatio, float near, float far)
 {
-    m_projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, near, far);
+    m_projectionMatrix = glm::perspectiveZO(glm::radians(fov), aspectRatio, near, far);
 }
 
 const glm::vec3& Camera::GetPosition()
@@ -40,7 +46,7 @@ const glm::vec3& Camera::GetPosition()
 
 const glm::vec3& Camera::GetRotation()
 {
-    return m_rotation;
+    return { m_pitch, m_yaw, 0.f };
 }
 
 void Camera::SetPosition(const glm::vec3& newPos)
@@ -51,7 +57,9 @@ void Camera::SetPosition(const glm::vec3& newPos)
 
 void Camera::SetRotation(const glm::vec3& newRot)
 {
-    m_rotation = newRot;
+    m_pitch = newRot.y;
+    m_yaw = newRot.z;
+    
     onPosUpdate();
 }
 
@@ -65,14 +73,26 @@ glm::mat4 Camera::GetProjectionMatrix()
     return m_projectionMatrix;
 }
 
+const glm::vec3& Camera::GetForwardVector()
+{
+    return m_forward;
+}
+
+const glm::vec3& Camera::GetUpVector()
+{
+    return m_up;
+}
+
 void Camera::onPosUpdate()
 {
-    m_forward = glm::rotate(DEFAULT_FORWARD, glm::radians(m_rotation.x), {1.f, 0.f, 0.f}) +
-        glm::rotate(DEFAULT_FORWARD, glm::radians(m_rotation.y), {0.f, 1.f, 0.f});
+    if (m_pitch > 89.f) m_pitch = 89.f;
+    if (m_pitch < -89.f) m_pitch = -89.f;
 
-    m_up = glm::rotate(DEFAULT_UP, glm::radians(m_rotation.x), {1.f, 0.f, 0.f}) +
-        glm::rotate(DEFAULT_UP, glm::radians(m_rotation.y), {0.f, 1.f, 0.f}) +
-        glm::rotate(DEFAULT_UP, glm::radians(m_rotation.z), {0.f, 0.f, 1.f});
+    glm::vec3 direction;
+    direction.x = cos(glm::radians(m_yaw)) * cos(glm::radians(m_pitch));
+    direction.y = sin(glm::radians(m_pitch));
+    direction.z = sin(glm::radians(m_yaw)) * cos(glm::radians(m_pitch));
+    m_forward = glm::normalize(direction);
 
     glm::vec3 lookAt = m_forward + m_position;
     m_viewMatrix = glm::lookAt(m_position, lookAt, m_up);

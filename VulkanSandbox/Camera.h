@@ -1,7 +1,7 @@
 #pragma once
 
 #define GLM_FORCE_RADIANS
-#define GLM_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -12,6 +12,8 @@ struct UboViewProjection
     glm::mat4 view;
     glm::mat4 projection;
     glm::vec4 camPosition;
+    glm::mat4 lightSpace;
+    glm::mat4 spotLightSpace;
 };
 
 class Camera
@@ -21,6 +23,7 @@ public:
     ~Camera();
 
     void AddPositionOffset(float x, float y, float z);
+    void AddPositionOffset(const glm::vec3& offset);
     void AddRotation(float roll, float pitch, float yaw);
 
     void SetProjection(float fov, float aspectRatio, float near, float far);
@@ -34,9 +37,12 @@ public:
     glm::mat4 GetViewMatrix();
     glm::mat4 GetProjectionMatrix();
 
+    const glm::vec3& GetForwardVector();
+    const glm::vec3& GetUpVector();
+
 private:
     glm::vec3 m_position;
-    glm::vec3 m_rotation;
+    float m_pitch, m_yaw;
 
     glm::mat4 m_viewMatrix;
     glm::mat4 m_projectionMatrix;

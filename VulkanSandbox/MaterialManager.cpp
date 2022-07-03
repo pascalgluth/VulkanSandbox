@@ -52,6 +52,8 @@ void MaterialManager::Destroy()
     }
 
     vkDestroySampler(device, textureSampler, nullptr);
+    vkDestroySampler(device, specularSampler, nullptr);
+    vkDestroySampler(device, normalSampler, nullptr);
     
     vkDestroyDescriptorPool(device, samplerDescriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(device, samplerSetLayout, nullptr);
@@ -174,7 +176,7 @@ uint32_t MaterialManager::CreateMaterial(const std::string& diffuse, const std::
     materials.push_back(mat);
     samplerDescriptorSets.push_back(descriptorSet);
     
-    return static_cast<uint32_t>(samplerDescriptorSets.size())-1;
+    return static_cast<uint32_t>(materials.size())-1;
 }
 
 void createSetLayout()
@@ -265,7 +267,6 @@ void createSampler()
     result = vkCreateSampler(device, &samplerCreateInfo, nullptr, &specularSampler);
     CHECK_VK_RESULT(result, "Failed to create Specular Sampler");
 }
-
 
 stbi_uc* loadTextureImageFile(const std::string& fileName, int* width, int* height, VkDeviceSize* imageSize)
 {

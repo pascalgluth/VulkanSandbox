@@ -2,6 +2,7 @@
 
 #include "Window.h"
 #include "VulkanRenderer.h"
+#include "imgui/imgui.h"
 
 Window window;
 VulkanRenderer renderer;
@@ -11,7 +12,7 @@ void update();
 
 void Engine::Init()
 {
-    window.Init();
+    window.Init("Vulkan Sandbox", 1920, 1080);
     renderer.Init();
 
     while (updateWindow())
@@ -41,5 +42,5 @@ bool updateWindow()
 
 void update()
 {
-    
+    renderer.Update(ImGui::GetIO().DeltaTime);
 }

@@ -9,6 +9,7 @@
 #include "Image.h"
 #include "Mesh.h"
 #include "Object.h"
+#include "ShadowMap.h"
 #include "UniformBuffer.h"
 
 class VulkanRenderer
@@ -18,20 +19,25 @@ public:
 	~VulkanRenderer();
 	
 	void Init();
+	void Update(float deltaTime);
 	void Draw();
 	void Destroy();
 	
 private:
-
 	const int MAX_CONCURRENT_FRAMES = 3;
 
 	Mesh m_testMesh;
 	Camera m_camera;
 
+	float m_rad = 45.f;
+	glm::vec2 m_leftRight = { -250.f, 250.f };
+	glm::vec2 m_topBottom = { -250.f, 250.f };
+	glm::vec2 m_nearFar = { -250.f, 250.f };
+
 	// Scene
 	std::vector<Object*> m_objects;
-	UboPointLight m_pointLight;
-	UniformBuffer<UboPointLight> m_uboPointLight;
+	UboDirLight m_dirLight;
+	UniformBuffer<UboDirLight> m_uboPointLight;
 	
 	// Vulkan Components
 	
@@ -73,7 +79,10 @@ private:
 
 	// ImGui
 	VkDescriptorPool m_imguiDescriptorPool;
+	VkDescriptorSet m_guiShadowMapImage;
 	void renderImGui();
+
+	
 
 	// -- Vulkan Functions --
 
@@ -90,17 +99,21 @@ private:
 	void createGraphicsCommandBuffer();
 	
 	UniformBuffer<UboViewProjection> m_uboViewProjection;
+	UniformBuffer<UboFragSettings> m_uboFragSettings;
 	
 	void initImGui();
 	
 	void recordCommands(uint32_t currentImage);
 
+	// Shadow Mapping
+	ShadowMap m_dlShadowMap;
+	ShadowMap m_slShadowMap;
+	
 	// Get Functions
 	void getPhysicalDevice();
 	SwapChainDetails getSwapchainDetails(VkPhysicalDevice device);
 
 	// -- Create Functions --
-	VkShaderModule createShaderModule(const std::vector<char>& spv);
 	void createSynchronization();
 
 	// -- Support Functions --
