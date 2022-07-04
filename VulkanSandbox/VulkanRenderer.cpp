@@ -51,7 +51,7 @@ void VulkanRenderer::Init()
         MaterialManager::Init(m_device.logicalDevice, m_device.physicalDevice);
 
         m_dlShadowMap.Init(m_device.logicalDevice, m_device.physicalDevice,
-            static_cast<uint32_t>(m_swapchainImages.size()), 2048, 2048,
+            static_cast<uint32_t>(m_swapchainImages.size()), 4096, 4096,
             0);
 
         m_slShadowMap.Init(m_device.logicalDevice, m_device.physicalDevice,
@@ -95,6 +95,18 @@ void VulkanRenderer::Init()
         light->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/light.obj");
         //light->SetPosition(glm::vec3(0.f, 5.f, 10.f));
         light->SetScale(glm::vec3(0.5f, 0.5f, 0.5f));
+
+        auto obj4 = new Object("Building2");
+        m_objects.push_back(obj4);
+        obj4->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/Cottage_FREE.obj");
+        obj4->SetPosition({150.f, -8.7f, 0.f});
+        obj4->SetScale({10.f, 10.f, 10.f});
+
+        auto obj5 = new Object("Building3");
+        m_objects.push_back(obj5);
+        obj5->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/Cottage_FREE.obj");
+        obj5->SetPosition({-150.f, -8.7f, 0.f});
+        obj5->SetScale({10.f, 10.f, 10.f});
 
         m_terrain.Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "textures/heightmap-1.png");
     }
@@ -1034,10 +1046,12 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
                 }
             }
 
+            /*std::vector<Mesh>& meshes = m_terrain.GetMeshes();
+
             std::vector<VkDescriptorSet> descriptorSets =
             {
                 m_uboViewProjection.GetDescriptorSet(currentImage),
-                MaterialManager::GetDescriptorSet(0),
+                MaterialManager::GetDescriptorSet(m_terrain.GetMaterialId(meshes[0].GetMaterialIndex())),
                 m_uboPointLight.GetDescriptorSet(currentImage),
                 ShadowMap::GetDescriptorSet(currentImage),
                 m_uboFragSettings.GetDescriptorSet(currentImage)
@@ -1047,8 +1061,6 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
                 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(),
                 0, nullptr);
 
-            std::vector<Mesh>& meshes = m_terrain.GetMeshes();
-            
             VkBuffer vertexBuffers[] = { meshes[0].GetVertexBuffer()->GetBuffer() };
             VkDeviceSize offsets[] = { 0 };
             vkCmdBindVertexBuffers(m_commandBuffers[currentImage], 0, 1, vertexBuffers, offsets);
@@ -1061,7 +1073,7 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
             cmdSetPrimitiveTopologyEXT(m_commandBuffers[currentImage], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
             
             vkCmdBindIndexBuffer(m_commandBuffers[currentImage], meshes[0].GetIndexBuffer()->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
-            vkCmdDrawIndexed(m_commandBuffers[currentImage], meshes[0].GetIndexCount(), 1, 0, 0, 0);
+            vkCmdDrawIndexed(m_commandBuffers[currentImage], meshes[0].GetIndexCount(), 1, 0, 0, 0);*/
 
             ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_commandBuffers[currentImage]);
         }

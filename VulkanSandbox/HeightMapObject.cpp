@@ -3,6 +3,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include "MaterialManager.h"
+
 HeightMapObject::HeightMapObject(const std::string& name)
     : Object(name)
 {
@@ -33,7 +35,7 @@ void HeightMapObject::loadHeightMap(VkQueue transferQueue, VkCommandPool transfe
     unsigned char* data = stbi_load(heightMapFile.c_str(), &width, &height, &channels, 0);
 
     std::vector<Vertex> vertices;
-    float yScale = 64.f / 256.f;
+    float yScale = 64.f*100.f / 256.f;
     float yShift = 16.f;
     
     for (int i = 0; i < height; ++i)
@@ -46,9 +48,16 @@ void HeightMapObject::loadHeightMap(VkQueue transferQueue, VkCommandPool transfe
             unsigned char y = texel[0];
 
             Vertex v = {};
+            
             v.position.x = -height/2.f + i;
-            v.position.y = (int)y * yScale - yShift;
+            v.position.y = ((int)y * yScale - yShift)*-1.f;
             v.position.z = -width/2.f + j;
+
+            v.textureCoord.x = (1.f/width) * j;
+            v.textureCoord.y = (1.f/height) * i;
+
+            v.normal = { 0.f, 1.f, 0.f };
+            
             vertices.push_back(std::move(v));            
         }
     }
@@ -72,4 +81,6 @@ void HeightMapObject::loadHeightMap(VkQueue transferQueue, VkCommandPool transfe
     m_numVertsPerStrip = width*2;
 
     m_meshes.emplace_back(m_device, m_physicalDevice, transferQueue, transferCommandPool, vertices, indices, glm::mat4(1.f), 0);
+    
+    m_materialIndices.push_back(MaterialManager::CreateMaterial("heightmap-1.png", "", "", transferQueue, transferCommandPool));
 }

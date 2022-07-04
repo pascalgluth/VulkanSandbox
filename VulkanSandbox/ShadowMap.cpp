@@ -26,6 +26,16 @@ void ShadowMap::StaticInit(VkDevice device, uint32_t imageCount)
     VkResult result = vkCreateDescriptorSetLayout(device, &layoutCreateInfo, nullptr, &setLayout);
     CHECK_VK_RESULT(result, "Failed to create Descriptor Set Layout");
 
+    VkDescriptorPoolSize poolSize = {};
+    poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSize.descriptorCount = 1;
+    poolSizes.push_back(poolSize);
+
+    VkDescriptorPoolSize poolSize2 = {};
+    poolSize2.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSize2.descriptorCount = 1;
+    poolSizes.push_back(poolSize2);
+
     VkDescriptorPoolCreateInfo poolCreateInfo = {};
     poolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolCreateInfo.maxSets = imageCount;

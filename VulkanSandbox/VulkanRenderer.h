@@ -33,9 +33,9 @@ private:
 	Camera m_camera;
 
 	float m_rad = 45.f;
-	glm::vec2 m_leftRight = { -500.f, 500.f };
-	glm::vec2 m_topBottom = { -500.f, 500.f };
-	glm::vec2 m_nearFar = { -500.f, 500.f };
+	glm::vec2 m_leftRight = { -1000.f, 1000.f };
+	glm::vec2 m_topBottom = { -1000.f, 1000.f };
+	glm::vec2 m_nearFar = { -1000.f, 1000.f };
 
 	// Scene
 	std::vector<Object*> m_objects;

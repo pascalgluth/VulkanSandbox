@@ -53,7 +53,7 @@ void main()
     vec4 ambientColor = diffuseColor;
     vec4 specularColor = texture(specularSampler, inTexCoord);
     vec3 n = normalize(inNormal);
-    //vec3 normal = normalize(texture(normalSampler, inTexCoord).rgb);
+    //vec3 n = normalize(texture(normalSampler, inTexCoord).rgb);
     //if (normal == vec3(0.0, 0.0, 0.0))
     //{
     //    normal = inNormal;

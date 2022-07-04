@@ -152,6 +152,7 @@
     <Content Include="textures\light.png" />
     <Content Include="textures\Palette.jpg" />
     <Content Include="textures\SmallBuilding01.png" />
+    <Content Include="textures\grass.jpg" />
     <Content Include="textures\Untitled-2.png" />
   </ItemGroup>
   <ItemGroup>
