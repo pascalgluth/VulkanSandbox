@@ -74,13 +74,13 @@ void VulkanRenderer::Init()
 
         initImGui();
 
-        m_camera.SetProjection(90.f, static_cast<float>(m_swapchainExtent.width)/static_cast<float>(m_swapchainExtent.height), 0.01f, 100000.f);
+        m_camera.SetProjection(90.f, static_cast<float>(m_swapchainExtent.width)/static_cast<float>(m_swapchainExtent.height), 0.1f, 10000.f);
         m_camera.AddPositionOffset(-25.2f, 23.36f, 29.65f);
         m_camera.AddRotation(-13.f, -65.f, 0.f);
         
         auto obj = new Object("Building");
         m_objects.push_back(obj);
-        obj->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/Cottage_FREE.obj");
+        obj->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/SmallBuilding01.obj");
         obj->SetPosition({0.f, -8.7f, 0.f});
         obj->SetScale({10.f, 10.f, 10.f});
 
@@ -88,7 +88,7 @@ void VulkanRenderer::Init()
         m_objects.push_back(obj2);
         obj2->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/Untitled-1.obj");
         obj2->SetPosition({0.f, -25.f, 0.f});
-        obj2->SetScale({0.1f, 0.1f, 0.1f});
+        obj2->SetScale({500.f, 0.5f, 800.f});
 
         auto light = new Object("Light");
         m_objects.push_back(light);
@@ -96,7 +96,7 @@ void VulkanRenderer::Init()
         //light->SetPosition(glm::vec3(0.f, 5.f, 10.f));
         light->SetScale(glm::vec3(0.5f, 0.5f, 0.5f));
 
-        auto obj4 = new Object("Building2");
+        /*auto obj4 = new Object("Building2");
         m_objects.push_back(obj4);
         obj4->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/Cottage_FREE.obj");
         obj4->SetPosition({150.f, -8.7f, 0.f});
@@ -106,7 +106,7 @@ void VulkanRenderer::Init()
         m_objects.push_back(obj5);
         obj5->Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "objects/Cottage_FREE.obj");
         obj5->SetPosition({-150.f, -8.7f, 0.f});
-        obj5->SetScale({10.f, 10.f, 10.f});
+        obj5->SetScale({10.f, 10.f, 10.f});*/
 
         m_terrain.Init(m_device.logicalDevice, m_device.physicalDevice, m_graphicsQueue, m_graphicsCommandPool, "textures/heightmap-1.png");
     }
@@ -149,7 +149,7 @@ void VulkanRenderer::Update(float deltaTime)
         firstPos = currentPos;
     }
 
-    glm::vec3 vec = { 0.f, 30.f, 0.f };
+    glm::vec3 vec = { 0.f, 75.f, 0.f };
     vec = glm::rotate(vec, glm::radians(m_rad), glm::vec3(1.f, 0.f, 0.f));
     m_objects[2]->SetPosition(vec);
 }
@@ -472,7 +472,21 @@ void VulkanRenderer::createInstance()
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "Sandbox";
     appInfo.engineVersion = VK_MAKE_VERSION(2, 0, 0);
+#ifdef VK_API_VERSION_1_3
     appInfo.apiVersion = VK_API_VERSION_1_3;
+#endif
+#ifdef VK_API_VERSION_1_2
+    appInfo.apiVersion = VK_API_VERSION_1_2;
+#endif
+#ifdef VK_API_VERSION_1_1
+    appInfo.apiVersion = VK_API_VERSION_1_1;
+#endif
+#ifdef VK_API_VERSION_1_0
+    appInfo.apiVersion = VK_API_VERSION_1_0;
+#endif
+
+    if (appInfo.apiVersion == 0)
+        throw std::runtime_error("No Vulkan SDK found");
 
     VkInstanceCreateInfo instanceCreateInfo = {};
     instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;

@@ -44,7 +44,7 @@ const glm::vec3& Camera::GetPosition()
     return m_position;
 }
 
-const glm::vec3& Camera::GetRotation()
+glm::vec3 Camera::GetRotation()
 {
     return { m_pitch, m_yaw, 0.f };
 }

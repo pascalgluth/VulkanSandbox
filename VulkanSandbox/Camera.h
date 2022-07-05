@@ -29,7 +29,7 @@ public:
     void SetProjection(float fov, float aspectRatio, float near, float far);
 
     const glm::vec3& GetPosition();
-    const glm::vec3& GetRotation();
+    glm::vec3 GetRotation();
 
     void SetPosition(const glm::vec3& newPos);
     void SetRotation(const glm::vec3& newRot);
