@@ -51,11 +51,11 @@ void VulkanRenderer::Init()
         MaterialManager::Init(m_device.logicalDevice, m_device.physicalDevice);
 
         m_dlShadowMap.Init(m_device.logicalDevice, m_device.physicalDevice,
-            static_cast<uint32_t>(m_swapchainImages.size()), 4096, 4096,
+            static_cast<uint32_t>(m_swapchainImages.size()), 1024, 1024,
             0);
 
         m_slShadowMap.Init(m_device.logicalDevice, m_device.physicalDevice,
-            static_cast<uint32_t>(m_swapchainImages.size()), 2048, 2048,
+            static_cast<uint32_t>(m_swapchainImages.size()), 1024, 1024,
             1);
 
         ShadowMap::StaticInit(m_device.logicalDevice, static_cast<uint32_t>(m_swapchainImages.size()));

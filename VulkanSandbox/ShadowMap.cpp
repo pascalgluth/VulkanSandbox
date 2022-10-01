@@ -28,12 +28,12 @@ void ShadowMap::StaticInit(VkDevice device, uint32_t imageCount)
 
     VkDescriptorPoolSize poolSize = {};
     poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize.descriptorCount = 1;
+    poolSize.descriptorCount = imageCount;
     poolSizes.push_back(poolSize);
 
     VkDescriptorPoolSize poolSize2 = {};
     poolSize2.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize2.descriptorCount = 1;
+    poolSize2.descriptorCount = imageCount;
     poolSizes.push_back(poolSize2);
 
     VkDescriptorPoolCreateInfo poolCreateInfo = {};
