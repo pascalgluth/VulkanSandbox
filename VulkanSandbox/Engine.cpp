@@ -12,7 +12,7 @@ void update();
 
 void Engine::Init()
 {
-    window.Init("Vulkan Sandbox", 1920, 1080);
+    window.Init("Vulkan Sandbox", 1280, 720);
     renderer.Init();
 
     while (updateWindow())

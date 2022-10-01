@@ -49,6 +49,12 @@
     <ExternalIncludePath>C:\VulkanSDK\1.3.216.0\Include;$(SolutionDir)Libs\include;$(ExternalIncludePath)</ExternalIncludePath>
     <LibraryPath>C:\VulkanSDK\1.3.216.0\Lib;$(SolutionDir)Libs\bin;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)release\</OutDir>
+    <IntDir>$(SolutionDir)release-int\</IntDir>
+    <ExternalIncludePath>C:\VulkanSDK\1.3.216.0\Include;$(SolutionDir)\Libs\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</ExternalIncludePath>
+    <LibraryPath>C:\VulkanSDK\1.3.216.0\Lib;$(SolutionDir)Libs\bin;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -76,6 +82,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>vulkan-1.lib;SDL2.lib;SDL2main.lib;SDL2_image.lib;assimp-vc143-mt.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

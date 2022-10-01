@@ -18,10 +18,19 @@ Window::~Window()
 
 void Window::Init(const char* windowName, const int width, const int height)
 {
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
+    std::cout << "Creating Window..." << std::endl;
+    
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) < 0)
+    {
+        std::cerr << "Error: " << SDL_GetError() << std::endl;
+    }
     m_window = SDL_CreateWindow(windowName, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN);
+    if (m_window == NULL)
+    {
+        std::cerr << "Error: " << SDL_GetError() << std::endl;
+    }
     SDL_SetWindowResizable(m_window, SDL_FALSE);
-
+    
     int channels;
     int iconWidth;
     int iconHeight;
@@ -31,6 +40,8 @@ void Window::Init(const char* windowName, const int width, const int height)
     m_icon = IMG_Load("textures/LBI_Logo_Transparent.png");
     SDL_SetWindowIcon(m_window, m_icon);
     //stbi_image_free(image);
+
+    std::cout << "Window created" << std::endl;
 }
 
 bool Window::Update()

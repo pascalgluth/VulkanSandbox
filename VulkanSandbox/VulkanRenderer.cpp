@@ -474,14 +474,11 @@ void VulkanRenderer::createInstance()
     appInfo.engineVersion = VK_MAKE_VERSION(2, 0, 0);
 #ifdef VK_API_VERSION_1_3
     appInfo.apiVersion = VK_API_VERSION_1_3;
-#endif
-#ifdef VK_API_VERSION_1_2
+#elif VK_API_VERSION_1_2
     appInfo.apiVersion = VK_API_VERSION_1_2;
-#endif
-#ifdef VK_API_VERSION_1_1
+#elif VK_API_VERSION_1_1
     appInfo.apiVersion = VK_API_VERSION_1_1;
-#endif
-#ifdef VK_API_VERSION_1_0
+#else
     appInfo.apiVersion = VK_API_VERSION_1_0;
 #endif
 
@@ -521,8 +518,8 @@ void VulkanRenderer::createInstance()
     VkResult result = vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance);
     CHECK_VK_RESULT(result, "Failed to create Vulkan Instance");
 
-    cmdSetPrimitiveTopologyEXT = (PFN_vkCmdSetPrimitiveTopologyEXT)vkGetInstanceProcAddr(m_instance, "vkCmdSetPrimitiveTopologyEXT");
-    if (cmdSetPrimitiveTopologyEXT == nullptr) throw std::runtime_error("Failed to load vkCmdSetPrimitiveTopologyEXT");
+    //cmdSetPrimitiveTopologyEXT = (PFN_vkCmdSetPrimitiveTopologyEXT)vkGetInstanceProcAddr(m_instance, "vkCmdSetPrimitiveTopologyEXT");
+    //if (cmdSetPrimitiveTopologyEXT == nullptr) throw std::runtime_error("Failed to load vkCmdSetPrimitiveTopologyEXT");
 }
 
 void VulkanRenderer::createWindowSurface()
@@ -762,9 +759,10 @@ void VulkanRenderer::createPipeline()
     pipelineCreateInfo.stageCount = 2;
     pipelineCreateInfo.pStages = shaderStages;
     pipelineCreateInfo.pVertexInputState = &vertexInputStateCreateInfo;
+    pipelineCreateInfo.pVertexInputState = &vertexInputStateCreateInfo;
     pipelineCreateInfo.pInputAssemblyState = &inputAssemblyStageCreateInfo;
     pipelineCreateInfo.pViewportState = &viewportStateCreateInfo;
-    pipelineCreateInfo.pDynamicState = &dynamicStateCreateInfo;
+    pipelineCreateInfo.pDynamicState = /*&dynamicStateCreateInfo*/nullptr;
     pipelineCreateInfo.pRasterizationState = &rasterizerCreateInfo;
     pipelineCreateInfo.pMultisampleState = &multisampleCreateInfo;
     pipelineCreateInfo.pColorBlendState = &colorBlendCreateInfo;
@@ -1012,7 +1010,7 @@ void VulkanRenderer::recordCommands(uint32_t currentImage)
         vkCmdBeginRenderPass(m_commandBuffers[currentImage], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
         {
             vkCmdBindPipeline(m_commandBuffers[currentImage], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
-            cmdSetPrimitiveTopologyEXT(m_commandBuffers[currentImage], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+            //cmdSetPrimitiveTopologyEXT(m_commandBuffers[currentImage], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
             for (size_t j = 0; j < m_objects.size(); ++j)
             {
